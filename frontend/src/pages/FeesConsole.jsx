@@ -1,0 +1,349 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  CreditCard, Search, ArrowUpRight, TrendingUp, 
+  AlertCircle, DollarSign, Calendar, Eye, Filter,
+  Printer, FileText, ChevronLeft, ChevronRight
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import Loading from '../components/Loading';
+import Toast from '../components/Toast';
+
+const getCourseBadge = (course) => {
+  if (!course) return null;
+  const normalized = course.trim().toUpperCase();
+  let colorClasses = "bg-slate-500/10 text-slate-655 dark:bg-slate-500/20 dark:text-slate-300";
+  
+  if (normalized.includes("LL.B") && !normalized.includes("B.A")) {
+    colorClasses = "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-300";
+  } else if (normalized.includes("LL.M")) {
+    colorClasses = "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300";
+  } else if (normalized.includes("B.A. LL.B") || normalized.includes("BA-LLB") || normalized.includes("B.A")) {
+    colorClasses = "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300";
+  } else if (normalized.includes("DIPLOMA")) {
+    colorClasses = "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300";
+  }
+  
+  return (
+    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${colorClasses}`}>
+      {course}
+    </span>
+  );
+};
+
+const FeesConsole = () => {
+  const navigate = useNavigate();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  
+  // Filters
+  const [search, setSearch] = useState('');
+  const [course, setCourse] = useState('');
+  const [installment, setInstallment] = useState('');
+  const [page, setPage] = useState(1);
+
+  const showToastMsg = (message, type = 'success') => {
+    setToast({ message, type });
+  };
+
+  const fetchFeesData = async () => {
+    setLoading(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`/api/fees/dashboard?search=${search}&course=${course}&installment=${installment}&page=${page}&limit=20`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const resData = await res.json();
+      if (res.ok) {
+        setData(resData);
+      } else {
+        showToastMsg(resData.message || 'Error fetching fees statistics', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Database or server connection offline', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFeesData();
+  }, [course, installment, page]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    setPage(1);
+    fetchFeesData();
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0 }
+  };
+
+  if (loading && !data) {
+    return <Loading size="lg" text="Loading college fees console & compiling cashflow statistics..." />;
+  }
+
+  const stats = data?.stats || { totalCollected: 0, totalOutstanding: 0, totalTransactions: 0, uniquePaidStudents: 0 };
+  const transactions = data?.transactions || [];
+
+  return (
+    <div className="flex flex-col space-y-8 font-sans">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 no-print">
+        <div>
+          <h1 className="text-lg font-black text-warm-900 dark:text-white uppercase tracking-wider">Fees Central Console</h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">B.J.S. Rampuria Jain Law College ERP</p>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 no-print">
+        
+        {/* Total Collected */}
+        <motion.div 
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3 }}
+          className="classy-card relative overflow-hidden group border-l-4 border-l-emerald-500"
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Total Collected</span>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-none">₹{stats.totalCollected.toLocaleString()}/-</h3>
+            </div>
+            <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
+            Total payment received from all installments
+          </div>
+        </motion.div>
+
+        {/* Total Outstanding */}
+        <motion.div 
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.05 }}
+          className="classy-card relative overflow-hidden group border-l-4 border-l-rose-500"
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Total Outstanding</span>
+              <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 leading-none">₹{stats.totalOutstanding.toLocaleString()}/-</h3>
+            </div>
+            <div className="p-3 bg-rose-500/10 dark:bg-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
+            Pending dues to be collected by students
+          </div>
+        </motion.div>
+
+        {/* Paid Students Count */}
+        <motion.div 
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="classy-card relative overflow-hidden group border-l-4 border-l-brand-500"
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Paying Students</span>
+              <h3 className="text-2xl font-black text-brand-600 dark:text-brand-300 leading-none">{stats.uniquePaidStudents}</h3>
+            </div>
+            <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl text-brand-600 dark:text-brand-400">
+              <DollarSign className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
+            Count of students with at least 1 payment
+          </div>
+        </motion.div>
+
+        {/* Total Transactions */}
+        <motion.div 
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.15 }}
+          className="classy-card relative overflow-hidden group border-l-4 border-l-indigo-500"
+        >
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Vouchers Issued</span>
+              <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none">{stats.totalTransactions}</h3>
+            </div>
+            <div className="p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl text-indigo-600 dark:text-indigo-400">
+              <Calendar className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
+            Chronological receipt installments verified
+          </div>
+        </motion.div>
+
+      </div>
+
+      {/* Main Console Grid */}
+      <div className="grid grid-cols-1 gap-6 no-print">
+        
+        {/* Live Filter Controls */}
+        <div className="classy-card flex flex-wrap items-center justify-between gap-4">
+          <form onSubmit={handleSearchSubmit} className="flex items-center space-x-3 w-full md:w-auto md:flex-1 max-w-md">
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Search by student name or registration ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold text-warm-850 dark:text-slate-200 placeholder-warm-800/35 outline-none focus:border-brand-500 transition-colors"
+              />
+              <Search className="w-4 h-4 absolute left-3.5 top-3 text-warm-800/35 dark:text-slate-500" />
+            </div>
+            <button type="submit" className="classy-btn-primary px-5 py-2.5 text-xs font-bold shrink-0">
+              Search
+            </button>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3.5 w-full md:w-auto">
+            <div className="flex items-center space-x-2">
+              <Filter className="w-3.5 h-3.5 text-warm-800/40 dark:text-slate-500" />
+              <select
+                value={course}
+                onChange={(e) => { setCourse(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold outline-none text-warm-850 dark:text-slate-250 cursor-pointer"
+              >
+                <option value="">All Courses</option>
+                <option value="LL.B.">LL.B.</option>
+                <option value="LL.M.">LL.M.</option>
+                <option value="B.A. LL.B.">B.A. LL.B.</option>
+                <option value="P.G. Diploma in Law">P.G. Diploma</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <select
+                value={installment}
+                onChange={(e) => { setInstallment(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold outline-none text-warm-850 dark:text-slate-250 cursor-pointer"
+              >
+                <option value="">All Installments</option>
+                <option value="1st Installment">1st Installment</option>
+                <option value="2nd Installment">2nd Installment</option>
+                <option value="Full Payment">Full Payment</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Global Transactions Log table */}
+        <div className="bg-white dark:bg-darkbg-surface rounded-2xl border border-warm-200/50 dark:border-darkbg-border shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-warm-200/50 dark:border-darkbg-border flex items-center justify-between">
+            <span className="text-xs font-bold text-warm-900 dark:text-slate-200 uppercase tracking-wider flex items-center space-x-2">
+              <FileText className="w-4 h-4 text-brand-500" />
+              <span>Global Payment Logs & Audit Ledger</span>
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-warm-50/50 dark:bg-darkbg-base/30 text-warm-800/40 dark:text-slate-400 text-[10px] uppercase font-bold tracking-widest border-b border-warm-200/50 dark:border-darkbg-border">
+                  <th className="px-6 py-4">Receipt No</th>
+                  <th className="px-6 py-4">Student Name</th>
+                  <th className="px-6 py-4">Course</th>
+                  <th className="px-6 py-4">Term/Installment</th>
+                  <th className="px-6 py-4">Amount Paid</th>
+                  <th className="px-6 py-4">Method</th>
+                  <th className="px-6 py-4">Transaction / Ref No</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4 text-right">Profile</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-100/50 dark:divide-darkbg-border text-xs font-semibold text-slate-700 dark:text-slate-200">
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan="9" className="text-center py-12 text-slate-400 italic font-medium">
+                      No matching student installment receipts found.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map((txn) => (
+                    <tr key={txn._id} className="hover:bg-warm-50/30 dark:hover:bg-darkbg-base/20 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">{txn.receiptNo}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-900 dark:text-slate-200">{txn.student?.fullName || 'N/A'}</div>
+                        <div className="text-[10px] text-slate-400 font-bold">{txn.student?.registrationId}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {getCourseBadge(txn.student?.courseApplied)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>{txn.academicYear}</div>
+                        <div className="text-[10px] text-slate-400">{txn.installmentName}</div>
+                      </td>
+                      <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400">
+                        ₹{txn.amountPaid.toLocaleString()}/-
+                      </td>
+                      <td className="px-6 py-4">{txn.paymentMode}</td>
+                      <td className="px-6 py-4 font-mono text-[10px] text-slate-500">
+                        {txn.transactionNo ? txn.transactionNo : <span className="text-slate-350 italic">—</span>}
+                      </td>
+                      <td className="px-6 py-4">{new Date(txn.paymentDate).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => navigate(`/profile/${txn.studentId}`)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-500/10 transition-colors"
+                          title="View Student Dossier"
+                        >
+                          <Eye className="w-4.5 h-4.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {data && data.pages > 1 && (
+            <div className="flex items-center justify-between border-t border-warm-250/30 dark:border-darkbg-border pt-4 text-xs font-bold text-warm-800 dark:text-slate-300 px-6 py-4">
+              <span>Page {page} of {data.pages}</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(p - 1, 1))}
+                  className="px-3.5 py-1.5 bg-warm-100 hover:bg-warm-200/60 dark:bg-darkbg-surface dark:hover:bg-darkbg-border rounded-xl transition-all disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <button
+                  disabled={page === data.pages}
+                  onClick={() => setPage(p => Math.min(p + 1, data.pages))}
+                  className="px-3.5 py-1.5 bg-warm-100 hover:bg-warm-200/60 dark:bg-darkbg-surface dark:hover:bg-darkbg-border rounded-xl transition-all disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FeesConsole;

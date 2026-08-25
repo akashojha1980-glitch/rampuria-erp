@@ -1,0 +1,9 @@
+[
+  {
+    "_id": "default_admin",
+    "username": "admin",
+    "password": "$2a$10$S9GjH8C8U4GgO6qW8w6B1eH1cZt2Fw6YmQeL2h1v1G1e1G1e1G1e1",
+    "name": "System Administrator",
+    "createdAt": "2026-05-29T17:39:52.270Z"
+  }
+]

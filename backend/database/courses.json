@@ -1,0 +1,77 @@
+[
+  {
+    "_id": "c1",
+    "name": "Bachelor of Computer Applications",
+    "code": "BCA",
+    "duration": "3 Years",
+    "totalSeats": 60,
+    "seatsFilled": 0,
+    "cutoffMarks": 50,
+    "reservations": {
+      "General": 30,
+      "OBC": 16,
+      "SC": 9,
+      "ST": 5
+    }
+  },
+  {
+    "_id": "c2",
+    "name": "Bachelor of Business Administration",
+    "code": "BBA",
+    "duration": "3 Years",
+    "totalSeats": 60,
+    "seatsFilled": 0,
+    "cutoffMarks": 45,
+    "reservations": {
+      "General": 30,
+      "OBC": 16,
+      "SC": 9,
+      "ST": 5
+    }
+  },
+  {
+    "_id": "c3",
+    "name": "B.Sc. Computer Science",
+    "code": "BSC_CS",
+    "duration": "3 Years",
+    "totalSeats": 40,
+    "seatsFilled": 0,
+    "cutoffMarks": 55,
+    "reservations": {
+      "General": 20,
+      "OBC": 11,
+      "SC": 6,
+      "ST": 3
+    }
+  },
+  {
+    "_id": "c4",
+    "name": "Bachelor of Commerce",
+    "code": "BCOM",
+    "duration": "3 Years",
+    "totalSeats": 80,
+    "seatsFilled": 0,
+    "cutoffMarks": 40,
+    "reservations": {
+      "General": 40,
+      "OBC": 22,
+      "SC": 12,
+      "ST": 6
+    }
+  },
+  {
+    "_id": "c5",
+    "name": "B.Tech Computer Science & Engineering",
+    "code": "BTECH_CSE",
+    "duration": "4 Years",
+    "totalSeats": 120,
+    "seatsFilled": 0,
+    "cutoffMarks": 60,
+    "reservations": {
+      "General": 60,
+      "OBC": 32,
+      "SC": 18,
+      "ST": 10
+    }
+  }
+]

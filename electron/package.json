@@ -1,0 +1,12 @@
+{
+  "name": "college-admission-desktop",
+  "version": "1.0.0",
+  "description": "Electron wrapper for MERN College Admission System",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^29.3.0"
+  }
+}

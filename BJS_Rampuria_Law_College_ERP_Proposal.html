@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BJS Rampuria Law College ERP - Commercial Proposal & Quotation</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm 15mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      margin: 0;
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* Header Styling */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-bottom: 3px solid #881337;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+
+    .header-logo-cell {
+      width: 70px;
+      vertical-align: middle;
+    }
+
+    .logo-badge {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #881337 0%, #be123c 100%);
+      color: #fff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-weight: 700;
+      font-size: 24px;
+      box-shadow: 0 4px 10px rgba(136, 19, 55, 0.25);
+    }
+
+    .header-title-cell {
+      vertical-align: middle;
+      padding-left: 15px;
+    }
+
+    .college-name {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: #881337;
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+
+    .college-subtitle {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .doc-meta-cell {
+      text-align: right;
+      vertical-align: middle;
+    }
+
+    .proposal-badge {
+      display: inline-block;
+      background: #fff1f2;
+      color: #9f1239;
+      border: 1px solid #fecdd3;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .doc-date {
+      font-size: 12px;
+      color: #475569;
+      font-weight: 500;
+    }
+
+    /* Client Box */
+    .client-box {
+      background: #f8fafc;
+      border-left: 4px solid #881337;
+      padding: 12px 18px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .client-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .client-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .client-detail {
+      font-size: 12px;
+      color: #475569;
+    }
+
+    /* Section Styling */
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #881337;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding-bottom: 5px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: #be123c;
+      border-radius: 2px;
+    }
+
+    /* Key Spec Cards */
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .spec-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #ffffff;
+    }
+
+    .spec-card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #9f1239;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .spec-card-desc {
+      font-size: 11px;
+      color: #475569;
+    }
+
+    /* Tables */
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 18px;
+      font-size: 12px;
+    }
+
+    .custom-table th {
+      background: #881337;
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .custom-table th.text-center { text-align: center; }
+    .custom-table th.text-right { text-align: right; }
+
+    .custom-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: top;
+    }
+
+    .custom-table tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .custom-table td.text-center { text-align: center; }
+    .custom-table td.text-right { text-align: right; font-weight: 600; }
+
+    .module-badge {
+      display: inline-block;
+      background: #ffe4e6;
+      color: #9f1239;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* Total Highlight Row */
+    .total-row td {
+      background: #fff1f2 !important;
+      border-top: 2px solid #fda4af;
+      border-bottom: 2px solid #fda4af;
+      font-weight: 700 !important;
+      color: #881337 !important;
+      font-size: 13px !important;
+    }
+
+    .amc-box {
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+    }
+
+    .amc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .amc-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .amc-price {
+      font-size: 15px;
+      font-weight: 800;
+      color: #881337;
+    }
+
+    .amc-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 11.5px;
+      color: #475569;
+    }
+
+    .amc-list li {
+      margin-bottom: 3px;
+    }
+
+    /* Terms & Signatures */
+    .terms-box {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 25px;
+      line-height: 1.6;
+    }
+
+    .signature-grid {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 35px;
+      padding-top: 15px;
+      border-top: 1px dashed #cbd5e1;
+    }
+
+    .sig-col {
+      width: 45%;
+      text-align: center;
+    }
+
+    .sig-line {
+      border-top: 1px solid #94a3b8;
+      margin-top: 40px;
+      margin-bottom: 5px;
+    }
+
+    .sig-name {
+      font-weight: 700;
+      font-size: 12px;
+      color: #1e293b;
+    }
+
+    .sig-title {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    /* Print Controls for Browser */
+    .no-print {
+      margin-bottom: 20px;
+      text-align: right;
+    }
+
+    .btn-print {
+      background: #881337;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .btn-print:hover {
+      background: #9f1239;
+    }
+
+    @media print {
+      .no-print { display: none; }
+      body { padding: 0; background: #fff; }
+      .container { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <div class="no-print">
+      <button class="btn-print" onclick="window.print()">🖨️ Save as PDF / Print Document</button>
+    </div>
+
+    <!-- Header -->
+    <table class="header-table">
+      <tr>
+        <td class="header-logo-cell">
+          <div class="logo-badge">BJS</div>
+        </td>
+        <td class="header-title-cell">
+          <h1 class="college-name">B.J.S. RAMPURIA JAIN LAW COLLEGE</h1>
+          <div class="college-subtitle">Affiliated to Maharaja Ganga Singh University, Bikaner (Raj.)</div>
+        </td>
+        <td class="doc-meta-cell">
+          <div class="proposal-badge">Commercial Quotation</div>
+          <div class="doc-date">Ref: BJS/ERP-PROP/2026/01</div>
+          <div class="doc-date">Date: July 19, 2026</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Client Box -->
+    <div class="client-box">
+      <div>
+        <div class="client-title">Proposal Prepared For:</div>
+        <div class="client-name">The Principal / Honorable Management</div>
+        <div class="client-detail">B.J.S. Rampuria Jain Law College, Bikaner</div>
+      </div>
+      <div style="text-align: right;">
+        <div class="client-title">Project Title:</div>
+        <div class="client-name" style="color: #881337;">College Admission & ERP System</div>
+        <div class="client-detail">On-Premise Desktop Edition</div>
+      </div>
+    </div>
+
+    <!-- Executive Highlights -->
+    <div class="spec-grid">
+      <div class="spec-card">
+        <div class="spec-card-title">⚡ High Performance</div>
+        <div class="spec-card-desc">Single standalone executable (`.exe`). Zero cloud latency, works offline instantly.</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-title">🔒 100% Data Privacy</div>
+        <div class="spec-card-desc">Local MS SQL Server database. No monthly subscription or external server hosting costs.</div>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-title">🛡️ Auto-DB Creation</div>
+        <div class="spec-card-desc">Self-healing auto-database & schema initialization with built-in TLS security patches.</div>
+      </div>
+    </div>
+
+    <!-- Module Summary Table -->
+    <div class="section-title">1. Scope of Work & ERP Modules Included</div>
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th style="width: 28%;">Module Name</th>
+          <th>Capabilities & Functionality Included</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="module-badge">1. Executive Dashboard</span></td>
+          <td>Real-time admission counter, dynamic fee collection summaries, course-wise analytics (BA-LLB, LLB, LLM, PGD), and live database status monitor.</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">2. Student Registration</span></td>
+          <td>Online/offline application entry, automated Registration ID (`REG-YYYY-XXXXX`) & SR No., document upload checklist (Photo, Marksheet, Aadhar, Caste).</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">3. Verification Ledger</span></td>
+          <td>Independent scroll audit list, student document previewer, approval/rejection flags with audit comments, and real-time status update.</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">4. Fees Console & Ledger</span></td>
+          <td>Multi-installment fee collection, transaction reference logging, course-wise color badges, printable fee receipt generator, and student ledger ledger history.</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">5. Library Console</span></td>
+          <td>Book inventory catalog, issue & return logging, student fine calculation, catalog search, and borrowing history records.</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">6. Advanced Reports Panel</span></td>
+          <td>Daily, monthly, and yearly fee collection summaries, candidate admission logs, dynamic filters (Course, Category, Payment Method), and 1-click CSV/Print export.</td>
+        </tr>
+        <tr>
+          <td><span class="module-badge">7. Super Admin & Staff</span></td>
+          <td>Multi-staff account creation, Role-Based Access Control (RBAC), and granular feature permission switches for total operational security.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Commercial Quotation Table -->
+    <div class="section-title">2. Commercial Quotation & Cost Breakdown</div>
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th class="text-center" style="width: 8%;">S.No</th>
+          <th style="width: 58%;">Particulars / Item Description</th>
+          <th class="text-center" style="width: 10%;">Qty</th>
+          <th class="text-right" style="width: 24%;">Amount (INR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-center">1</td>
+          <td>
+            <strong>BJS Rampuria Law College ERP Software License (One-Time)</strong><br>
+            <span style="font-size: 11px; color: #64748b;">Includes full rights to all 7 core modules, modern dual-theme UI (Glassmorphic Dark/Light), auto browser launcher & desktop packaging.</span>
+          </td>
+          <td class="text-center">1 Unit</td>
+          <td class="text-right">₹ 45,000.00</td>
+        </tr>
+        <tr>
+          <td class="text-center">2</td>
+          <td>
+            <strong>On-Premise Database Engine & Auto-Creation Setup</strong><br>
+            <span style="font-size: 11px; color: #64748b;">MS SQL Server 2008+ configuration, auto-schema migration, TLS compatibility patch & security seeding.</span>
+          </td>
+          <td class="text-center">1 Setup</td>
+          <td class="text-right">₹ 8,000.00</td>
+        </tr>
+        <tr>
+          <td class="text-center">3</td>
+          <td>
+            <strong>Staff Training, User Onboarding & Operations Guide</strong><br>
+            <span style="font-size: 11px; color: #64748b;">On-site training sessions for college administrative & fee console staff members.</span>
+          </td>
+          <td class="text-center">1 Session</td>
+          <td class="text-right">₹ 4,000.00</td>
+        </tr>
+        <tr>
+          <td class="text-center">4</td>
+          <td>
+            <strong>1st Year Comprehensive Warranty & Technical Support</strong><br>
+            <span style="font-size: 11px; color: #047857; font-weight: 600;">Includes free bug fixes, system performance updates & database backup assistance for 12 months.</span>
+          </td>
+          <td class="text-center">1 Year</td>
+          <td class="text-right" style="color: #047857;">INCLUDED (FREE)</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="3" class="text-right">TOTAL INITIAL INVESTMENT:</td>
+          <td class="text-right">₹ 57,000.00</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="font-size: 11px; font-weight: 600; color: #475569; margin-top: -10px; margin-bottom: 18px; text-align: right;">
+      (Amount in Words: Rupees Fifty-Seven Thousand Only)
+    </div>
+
+    <!-- AMC Section -->
+    <div class="section-title">3. Annual Maintenance Contract (AMC) — Year 2 Onwards</div>
+    <div class="amc-box">
+      <div class="amc-header">
+        <div class="amc-title">Yearly Maintenance & Upgrade Support Package</div>
+        <div class="amc-price">₹ 9,000 / Year</div>
+      </div>
+      <ul class="amc-list">
+        <li><strong>Database Maintenance:</strong> Periodic MS SQL database optimization, health audits & automated local backup setup.</li>
+        <li><strong>Software Updates:</strong> Free minor UI & report template updates matching university/college regulatory policy changes.</li>
+        <li><strong>Priority Technical Support:</strong> On-call and remote desktop assistance for college administrative staff.</li>
+        <li><strong>Zero Hidden Costs:</strong> Completely optional from 2nd year onwards with fixed annual rate lock.</li>
+      </ul>
+    </div>
+
+    <!-- Terms and Payment Schedule -->
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+      <div style="flex: 1;">
+        <div class="section-title" style="margin-top: 0;">4. Payment Milestones</div>
+        <table class="custom-table" style="margin-bottom: 0;">
+          <tr>
+            <td><strong>1. Order Confirmation (Advance):</strong></td>
+            <td class="text-right" style="color: #881337;">40% (₹ 22,800)</td>
+          </tr>
+          <tr>
+            <td><strong>2. On-Premise Setup & Demo:</strong></td>
+            <td class="text-right" style="color: #881337;">40% (₹ 22,800)</td>
+          </tr>
+          <tr>
+            <td><strong>3. Staff Training & Handover:</strong></td>
+            <td class="text-right" style="color: #881337;">20% (₹ 11,400)</td>
+          </tr>
+        </table>
+      </div>
+      <div style="flex: 1;">
+        <div class="section-title" style="margin-top: 0;">5. Commercial Terms</div>
+        <div class="terms-box">
+          • <strong>100% Data Ownership:</strong> All college records remain strictly on college hardware.<br>
+          • <strong>Prerequisites:</strong> College to provide 1 Windows PC with MS SQL Server installed.<br>
+          • <strong>Warranty:</strong> 12 months comprehensive warranty included from deployment date.
+        </div>
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signature-grid">
+      <div class="sig-col">
+        <div class="sig-line"></div>
+        <div class="sig-name">Authorized Technical Lead</div>
+        <div class="sig-title">Software Engineering Team</div>
+      </div>
+      <div class="sig-col">
+        <div class="sig-line"></div>
+        <div class="sig-name">Principal / Authorized Signatory</div>
+        <div class="sig-title">B.J.S. Rampuria Jain Law College</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
