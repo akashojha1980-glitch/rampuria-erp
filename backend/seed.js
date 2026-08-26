@@ -9,7 +9,72 @@ const seedData = async () => {
   console.log('[Seeding] Starting database seed check...');
 
   try {
-    // 1. Seed Admin
+    const fs = require('fs');
+    const path = require('path');
+    const migratedDataPath = path.join(__dirname, 'database', 'migrated_data.json');
+
+    if (fs.existsSync(migratedDataPath)) {
+      console.log('[Seeding] Found migrated_data.json file. Importing local database records...');
+      const rawData = fs.readFileSync(migratedDataPath, 'utf8');
+      const data = JSON.parse(rawData);
+
+      // Clean existing SQLite tables to prevent primary key conflicts before bulk insert
+      console.log('[Seeding] Syncing tables for migration...');
+
+      if (data.admins && data.admins.length > 0) {
+        const adminCount = await Admin.count();
+        if (adminCount <= 1) { // Only migrate if no admins exist or only default exists
+          console.log(`[Seeding] Migrating ${data.admins.length} administrators...`);
+          await Admin.destroy({ truncate: { cascade: true }, force: true });
+          await Admin.bulkCreate(data.admins);
+        }
+      }
+
+      if (data.courses && data.courses.length > 0) {
+        const courseCount = await Course.count();
+        if (courseCount === 0) {
+          console.log(`[Seeding] Migrating ${data.courses.length} courses...`);
+          await Course.bulkCreate(data.courses);
+        }
+      }
+
+      if (data.students && data.students.length > 0) {
+        const studentCount = await Student.count();
+        if (studentCount === 0) {
+          console.log(`[Seeding] Migrating ${data.students.length} student records...`);
+          await Student.bulkCreate(data.students);
+        }
+      }
+
+      if (data.feePayments && data.feePayments.length > 0) {
+        const feePaymentCount = await FeePayment.count();
+        if (feePaymentCount === 0) {
+          console.log(`[Seeding] Migrating ${data.feePayments.length} fee payment transactions...`);
+          await FeePayment.bulkCreate(data.feePayments);
+        }
+      }
+
+      if (data.books && data.books.length > 0) {
+        const bookCount = await Book.count();
+        if (bookCount === 0) {
+          console.log(`[Seeding] Migrating ${data.books.length} library books...`);
+          await Book.bulkCreate(data.books);
+        }
+      }
+
+      if (data.bookIssues && data.bookIssues.length > 0) {
+        const bookIssueCount = await BookIssue.count();
+        if (bookIssueCount === 0) {
+          console.log(`[Seeding] Migrating ${data.bookIssues.length} book issue entries...`);
+          await BookIssue.bulkCreate(data.bookIssues);
+        }
+      }
+
+      console.log('[Seeding] ✓ Local data migration to cloud SQLite completed successfully!');
+      return;
+    }
+
+    // 1. Seed Admin (Fallback if no migration file)
     const adminCount = await Admin.count();
     if (adminCount === 0) {
       await Admin.create({
