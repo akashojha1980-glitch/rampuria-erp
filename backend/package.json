@@ -31,7 +31,7 @@
     "nedb-promises": "^6.2.3",
     "pdfkit": "^0.19.1",
     "sequelize": "^6.37.8",
-    "sqlite3": "^6.0.1",
+    "sqlite3": "^5.1.7",
     "tedious": "^19.2.1"
   },
   "optionalDependencies": {
