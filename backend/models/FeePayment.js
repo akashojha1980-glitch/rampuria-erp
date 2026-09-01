@@ -21,6 +21,10 @@ const FeePayment = sequelize.define('FeePayment', {
     allowNull: false,
     defaultValue: '1st Year'
   },
+  academicSession: {
+    type: DataTypes.STRING,
+    defaultValue: '2025-26'
+  },
   semester: {
     type: DataTypes.STRING,
     allowNull: false,

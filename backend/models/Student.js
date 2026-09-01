@@ -126,6 +126,10 @@ const Student = sequelize.define('Student', {
     type: DataTypes.TEXT,
     defaultValue: ''
   },
+  academicSession: {
+    type: DataTypes.STRING,
+    defaultValue: '2025-26'
+  },
   // Allotment details
   seatAllotted: {
     type: DataTypes.BOOLEAN,

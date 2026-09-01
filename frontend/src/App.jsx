@@ -13,6 +13,8 @@ import LibraryConsole from './pages/LibraryConsole';
 import UserManagement from './pages/UserManagement';
 import Reports from './pages/Reports';
 import Loading from './components/Loading';
+import { SessionProvider } from './context/SessionContext';
+import Promotion from './pages/Promotion';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -90,6 +92,7 @@ function AppRoutes() {
           <Route index element={<DashboardOrRedirect />} />
           <Route path="registration" element={<PermissionGuard permission="registration"><Registration /></PermissionGuard>} />
           <Route path="verification" element={<PermissionGuard permission="verification"><Verification /></PermissionGuard>} />
+          <Route path="promotion" element={<PermissionGuard permission="verification"><Promotion /></PermissionGuard>} />
           <Route path="fees" element={<PermissionGuard permission="fees"><FeesConsole /></PermissionGuard>} />
           <Route path="library" element={<PermissionGuard permission="library"><LibraryConsole /></PermissionGuard>} />
           <Route path="users" element={<PermissionGuard permission="users"><UserManagement /></PermissionGuard>} />
@@ -108,7 +111,9 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppRoutes />
+        <SessionProvider>
+          <AppRoutes />
+        </SessionProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -199,9 +199,10 @@ router.post('/', protect, upload.fields(studentUploadFields), async (req, res) =
 // @route   GET /api/students
 // @access  Private
 router.get('/', protect, async (req, res) => {
-  const { search, course, category, status, page = 1, limit = 20 } = req.query;
+  const { search, course, category, status, session, page = 1, limit = 20 } = req.query;
   const where = {};
 
+  if (session && session !== 'all') where.academicSession = session;
   if (course) where.courseApplied = course;
   if (category) where.category = category;
   

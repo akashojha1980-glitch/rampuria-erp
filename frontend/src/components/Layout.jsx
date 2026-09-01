@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import { useSession } from '../context/SessionContext';
 import { 
   Database, Clock, RefreshCw, GraduationCap, 
-  BookOpen, Scale, Scroll, PenTool, BookMarked 
+  BookOpen, Scale, Scroll, PenTool, BookMarked, Calendar 
 } from 'lucide-react';
 
 const Layout = () => {
   const location = useLocation();
+  const { activeSession, sessions, setActiveSession } = useSession();
   const [dbOnline, setDbOnline] = useState(true);
   const [dbChecking, setDbChecking] = useState(false);
   const [localTime, setLocalTime] = useState(new Date());
@@ -57,6 +56,7 @@ const Layout = () => {
       case '/registration': return 'Student Registration Form';
       case '/verification': return 'Document Verification Portal';
       case '/fees': return 'Fees Control & Cashflow Console';
+      case '/promotion': return '1-Click Academic Promotion';
       default:
         if (location.pathname.startsWith('/profile/')) return 'Student Profile Summary';
         return 'ERP Console';
@@ -119,6 +119,23 @@ const Layout = () => {
           </div>
 
           <div className="flex items-center space-x-6">
+            {/* Global Session Switcher Dropdown */}
+            <div className="flex items-center space-x-2 bg-warm-100/60 dark:bg-darkbg-base px-3 py-1.5 rounded-full border border-warm-200/60 dark:border-darkbg-border">
+              <Calendar className="w-3.5 h-3.5 text-brand-500" />
+              <span className="text-[11px] font-bold text-warm-900 dark:text-slate-200">Session:</span>
+              <select
+                value={activeSession}
+                onChange={(e) => setActiveSession(e.target.value)}
+                className="bg-transparent text-[11px] font-bold text-brand-600 dark:text-brand-400 focus:outline-none cursor-pointer"
+              >
+                {sessions.map(s => (
+                  <option key={s} value={s} className="bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Live Local Clock */}
             <div className="flex items-center space-x-2 text-xs font-medium text-warm-800/60 dark:text-slate-400">
               <Clock className="w-4 h-4 text-brand-500" />

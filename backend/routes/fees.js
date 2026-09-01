@@ -15,20 +15,17 @@ const mapId = (instance) => {
 // @route   GET /api/fees/dashboard
 // @access  Private (Terminal Admin desk)
 router.get('/dashboard', protect, async (req, res) => {
-  const { search, course, installment, page = 1, limit = 50 } = req.query;
+  const { search, course, installment, session, page = 1, limit = 50 } = req.query;
   
   try {
-    // 1. Calculate overall college-wide metrics
-    const totalCollected = await FeePayment.sum('amountPaid') || 0;
-    const totalOutstanding = await FeePayment.sum('amountDue') || 0;
-    const totalTransactions = await FeePayment.count();
-    
-    // Count distinct students who have paid fees
-    const [uniquePaidStudents] = await sequelizeQueryUniquePaidCount();
-
-    // 2. Build filter conditions
+    // 1. Build filter conditions
     const where = {};
     const studentWhere = {};
+
+    if (session && session !== 'all') {
+      where.academicSession = session;
+      studentWhere.academicSession = session;
+    }
 
     if (course) {
       studentWhere.courseApplied = course;
