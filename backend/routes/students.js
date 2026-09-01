@@ -248,15 +248,30 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.get('/stats/summary', protect, async (req, res) => {
   try {
-    const totalReg = await Student.count();
-    const verifiedReg = await Student.count({ where: { verificationStatus: 'Verified' } });
-    const pendingReg = await Student.count({ where: { verificationStatus: 'Pending' } });
-    const allottedReg = await Student.count({ where: { seatAllotted: true } });
+    const { session } = req.query;
+    const baseWhere = {};
+    if (session && session !== 'all') {
+      baseWhere.academicSession = session;
+    }
+
+    const totalReg = await Student.count({ where: baseWhere });
+    const verifiedReg = await Student.count({ 
+      where: { 
+        ...baseWhere, 
+        verificationStatus: { [Op.or]: ['Verified', 'Approved'] } 
+      } 
+    });
+    const pendingReg = await Student.count({ 
+      where: { ...baseWhere, verificationStatus: 'Pending' } 
+    });
+    const allottedReg = await Student.count({ 
+      where: { ...baseWhere, seatAllotted: true } 
+    });
 
     const courses = await Course.findAll();
     const byCourse = await Promise.all(courses.map(async (c) => {
-      const applied = await Student.count({ where: { courseApplied: c.code } });
-      const allotted = await Student.count({ where: { courseApplied: c.code, seatAllotted: true } });
+      const applied = await Student.count({ where: { ...baseWhere, courseApplied: c.code } });
+      const allotted = await Student.count({ where: { ...baseWhere, courseApplied: c.code, seatAllotted: true } });
       return {
         code: c.code,
         name: c.name,
@@ -267,10 +282,10 @@ router.get('/stats/summary', protect, async (req, res) => {
     }));
 
     const byCategory = {
-      General: await Student.count({ where: { category: 'General' } }),
-      OBC: await Student.count({ where: { category: 'OBC' } }),
-      SC: await Student.count({ where: { category: 'SC' } }),
-      ST: await Student.count({ where: { category: 'ST' } })
+      General: await Student.count({ where: { ...baseWhere, category: 'General' } }),
+      OBC: await Student.count({ where: { ...baseWhere, category: 'OBC' } }),
+      SC: await Student.count({ where: { ...baseWhere, category: 'SC' } }),
+      ST: await Student.count({ where: { ...baseWhere, category: 'ST' } })
     };
 
     res.json({

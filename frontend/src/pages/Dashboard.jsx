@@ -11,8 +11,11 @@ import {
 import { motion } from 'framer-motion';
 import Loading from '../components/Loading';
 
+import { useSession } from '../context/SessionContext';
+
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { activeSession } = useSession();
   const [stats, setStats] = useState(null);
   const [courseStats, setCourseStats] = useState([]);
   const [recentStudents, setRecentStudents] = useState([]);
@@ -22,40 +25,53 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     try {
       // 1. Fetch Students
-      const studentsRes = await fetch('/api/students?limit=5', {
+      const studentsRes = await fetch(`/api/students?limit=5&session=${activeSession || ''}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!studentsRes.ok) throw new Error('Students registry query failed');
-      const studentsData = await studentsRes.json();
-      setRecentStudents(studentsData.students || []);
+      if (studentsRes.ok) {
+        const studentsData = await studentsRes.json();
+        setRecentStudents(studentsData.students || []);
+      }
 
       // 2. Fetch Stats Summary
-      const statsRes = await fetch('/api/students/stats/summary', {
+      const statsRes = await fetch(`/api/students/stats/summary?session=${activeSession || ''}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!statsRes.ok) throw new Error('Stats summary query failed');
-      const statsData = await statsRes.json();
       
-      setStats({
-        totalAdmissions: statsData.total || 0,
-        pendingVerifications: statsData.pending || 0,
-        approvedStudents: statsData.verified || 0,
-        seatsFilled: statsData.allotted || 0
-      });
-
-      // 3. Set chart course stats
-      setCourseStats(statsData.byCourse || []);
-      setLoading(false);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats({
+          totalAdmissions: statsData.total || 0,
+          pendingVerifications: statsData.pending || 0,
+          approvedStudents: statsData.verified || 0,
+          seatsFilled: statsData.allotted || 0
+        });
+        setCourseStats(statsData.byCourse || []);
+      } else {
+        // Fallback default stats if 503 or initial DB load
+        setStats({
+          totalAdmissions: 0,
+          pendingVerifications: 0,
+          approvedStudents: 0,
+          seatsFilled: 0
+        });
+      }
     } catch (error) {
       console.error('[Dashboard API Error]:', error.message);
-      // Auto-retry in 3 seconds to await database/server connection stability
-      setTimeout(fetchDashboardData, 3000);
+      setStats({
+        totalAdmissions: 0,
+        pendingVerifications: 0,
+        approvedStudents: 0,
+        seatsFilled: 0
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeSession]);
 
   if (loading || !stats) {
     return <Loading size="lg" text="Connecting to BJS Rampuria Database & Syncing live statistics..." />;
