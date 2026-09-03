@@ -60,6 +60,7 @@ const Layout = () => {
       case '/verification': return 'Document Verification Portal';
       case '/fees': return 'Fees Control & Cashflow Console';
       case '/promotion': return '1-Click Academic Promotion';
+      case '/results': return 'Annual Examination & Results Console';
       default:
         if (location.pathname.startsWith('/profile/')) return 'Student Profile Summary';
         return 'ERP Console';

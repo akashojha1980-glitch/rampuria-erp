@@ -57,6 +57,22 @@
   @apply bg-white/80 dark:bg-darkbg-surface/85 backdrop-blur-md border border-warm-200/50 dark:border-darkbg-border/60 shadow-elegant dark:shadow-elegant-dark;
 }
 
+/* Print Styles */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  aside, header, .no-print, nav, button {
+    display: none !important;
+  }
+  .printable-marksheet {
+    padding: 0 !important;
+    border: none !important;
+    width: 100% !important;
+  }
+}
+
 /* ─── 3D WIDE-TRAVEL & HIGH GLOW ANIMATIONS ─── */
 @keyframes floatScreen1 {
   0% {

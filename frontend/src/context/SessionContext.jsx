@@ -7,7 +7,7 @@ export const SessionProvider = ({ children }) => {
     return localStorage.getItem('activeSession') || '2025-26';
   });
 
-  const [sessions, setSessions] = useState(['2024-25', '2025-26', '2026-27']);
+  const [sessions, setSessions] = useState(['All Sessions', '2024-25', '2025-26', '2026-27']);
   const [loading, setLoading] = useState(false);
 
   // Fetch available sessions from backend
@@ -26,7 +26,7 @@ export const SessionProvider = ({ children }) => {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           const names = data.map(s => s.sessionName || s);
-          setSessions(names);
+          setSessions(['All Sessions', ...names.filter(n => n !== 'All Sessions')]);
 
           // If there is an active session marked in DB and no local override
           const dbActive = data.find(s => s.isActive);

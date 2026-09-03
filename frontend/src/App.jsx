@@ -15,6 +15,7 @@ import Reports from './pages/Reports';
 import Loading from './components/Loading';
 import { SessionProvider } from './context/SessionContext';
 import Promotion from './pages/Promotion';
+import Results from './pages/Results';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -93,6 +94,7 @@ function AppRoutes() {
           <Route path="registration" element={<PermissionGuard permission="registration"><Registration /></PermissionGuard>} />
           <Route path="verification" element={<PermissionGuard permission="verification"><Verification /></PermissionGuard>} />
           <Route path="promotion" element={<PermissionGuard permission="verification"><Promotion /></PermissionGuard>} />
+          <Route path="results" element={<PermissionGuard permission="verification"><Results /></PermissionGuard>} />
           <Route path="fees" element={<PermissionGuard permission="fees"><FeesConsole /></PermissionGuard>} />
           <Route path="library" element={<PermissionGuard permission="library"><LibraryConsole /></PermissionGuard>} />
           <Route path="users" element={<PermissionGuard permission="users"><UserManagement /></PermissionGuard>} />

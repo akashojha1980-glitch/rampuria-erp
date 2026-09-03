@@ -68,6 +68,7 @@ app.use('/api/fees',      require('./routes/fees'));
 app.use('/api/library',   require('./routes/library'));
 app.use('/api/reports',   require('./routes/reports'));
 app.use('/api/sessions',  require('./routes/sessions'));
+app.use('/api/results',   require('./routes/results'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -135,8 +136,16 @@ const connectAndSyncDB = async () => {
       } catch (err) {}
 
       try {
+        await sequelize.query("UPDATE Students SET academicSession = '2025-26' WHERE academicSession IS NULL OR academicSession = ''");
+      } catch (err) {}
+
+      try {
         await sequelize.query('ALTER TABLE FeePayments ADD academicSession NVARCHAR(255) DEFAULT "2025-26"');
         console.log('[Migration] Added academicSession column to FeePayments table.');
+      } catch (err) {}
+
+      try {
+        await sequelize.query("UPDATE FeePayments SET academicSession = '2025-26' WHERE academicSession IS NULL OR academicSession = ''");
       } catch (err) {}
 
       try {
