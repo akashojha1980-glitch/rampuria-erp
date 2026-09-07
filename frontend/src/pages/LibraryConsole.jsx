@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   BookOpen, Plus, Search, Calendar, FileText, 
   User, CheckCircle, Clock, Trash2, Edit, AlertCircle, X, Check,
-  Settings, EyeOff, Eye
+  Settings, EyeOff, Eye, Download, Upload, FileSpreadsheet, CheckCircle2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 
@@ -45,6 +46,14 @@ const LibraryConsole = () => {
   // Library settings states
   const [defaultBookPrice, setDefaultBookPrice] = useState(400);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Bulk Books Excel Import States
+  const [showBulkBookModal, setShowBulkBookModal] = useState(false);
+  const [excelBooks, setExcelBooks] = useState([]);
+  const [excelBookFileName, setExcelBookFileName] = useState('');
+  const [importingBooks, setImportingBooks] = useState(false);
+  const [bookImportResult, setBookImportResult] = useState(null);
+  const bookFileInputRef = useRef(null);
 
   // Transaction Issue/Return States
   const [issues, setIssues] = useState([]);
@@ -251,6 +260,118 @@ const LibraryConsole = () => {
       fetchIssues();
     }
   }, [activeTab, bookSearch, bookPage, issueSearch, issueStatusFilter, issuePage]);
+
+  // Download Sample Excel Template for Books
+  const handleDownloadSampleBookExcel = () => {
+    const sampleData = [
+      {
+        'Accession No': 'LAW-001',
+        'Book Title': 'Constitutional Law of India (Vol 1)',
+        'Author': 'Dr. J.N. Pandey',
+        'Publisher': 'Central Law Agency',
+        'Subject / Department': 'Constitutional Law',
+        'Total Copies': 5,
+        'Shelf / Rack Location': 'Rack A-1',
+        'Price (₹)': 650,
+        'Remarks': 'Standard Textbook'
+      },
+      {
+        'Accession No': 'LAW-002',
+        'Book Title': 'The Indian Penal Code, 1860',
+        'Author': 'Ratanlal & Dhirajlal',
+        'Publisher': 'LexisNexis',
+        'Subject / Department': 'Criminal Law',
+        'Total Copies': 8,
+        'Shelf / Rack Location': 'Rack B-2',
+        'Price (₹)': 795,
+        'Remarks': 'Bare Act & Commentary'
+      },
+      {
+        'Accession No': 'LAW-003',
+        'Book Title': 'Law of Torts and Consumer Protection',
+        'Author': 'Dr. R.K. Bangia',
+        'Publisher': 'Allahabad Law Agency',
+        'Subject / Department': 'Civil Law',
+        'Total Copies': 4,
+        'Shelf / Rack Location': 'Rack A-3',
+        'Price (₹)': 520,
+        'Remarks': 'Reference'
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Books Catalog');
+    XLSX.writeFile(workbook, 'Library_Books_Bulk_Import_Template.xlsx');
+    showToastMsg('Downloaded Library Books Sample Template (.xlsx)');
+  };
+
+  // Read Excel File for Books
+  const handleBookExcelFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setExcelBookFileName(file.name);
+    setBookImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        if (!data || data.length === 0) {
+          showToastMsg('The uploaded Excel sheet contains no book data', 'error');
+          setExcelBooks([]);
+          return;
+        }
+
+        setExcelBooks(data);
+        showToastMsg(`Parsed ${data.length} books from ${file.name}`);
+      } catch (err) {
+        console.error('Excel parse error:', err);
+        showToastMsg('Failed to parse Excel file', 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Execute Bulk Book Import API
+  const handleExecuteBulkBookImport = async () => {
+    if (excelBooks.length === 0) {
+      showToastMsg('No book records to import', 'error');
+      return;
+    }
+
+    setImportingBooks(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/library/books/bulk-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ books: excelBooks })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBookImportResult(data);
+        showToastMsg(`Bulk book import complete: ${data.count} books cataloged!`);
+        fetchBooks();
+        fetchStats();
+      } else {
+        showToastMsg(data.message || 'Error during bulk book import', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server connection failed', 'error');
+    } finally {
+      setImportingBooks(false);
+    }
+  };
 
   // Book Add / Edit Handler
   const handleBookSubmit = async (e) => {
@@ -500,6 +621,16 @@ const LibraryConsole = () => {
           <p className="text-xs text-slate-400 mt-1.5 font-medium">Issue books, manage catalog lists, and verify checkout histories.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => { setShowBulkBookModal(true); setBookImportResult(null); setExcelBooks([]); setExcelBookFileName(''); }}
+            className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
+            title="Bulk import book inventory from Excel sheet"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Bulk Import (Excel)</span>
+          </button>
+          
           <button
             onClick={() => openBookModal(null)}
             className="classy-btn-primary py-2.5 text-xs font-bold flex items-center space-x-2"
@@ -1414,6 +1545,170 @@ const LibraryConsole = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: BULK BOOKS EXCEL IMPORT */}
+      {showBulkBookModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-warm-900/80 dark:bg-black/85 backdrop-blur-md p-4 animate-fade-in no-print">
+          <div className="bg-white dark:bg-darkbg-surface border border-warm-200 dark:border-darkbg-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/50 dark:bg-darkbg-base/50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-warm-900 dark:text-white">Bulk Library Books Excel Import</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Batch catalog books, accession numbers & copies into library database</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBulkBookModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              
+              {/* Step 1: Download Sample */}
+              <div className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-200/60 dark:border-brand-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-brand-900 dark:text-brand-300">Step 1: Download Standard Book Catalog Format</h4>
+                  <p className="text-[11px] text-brand-800/60 dark:text-brand-400">
+                    Use our official template with columns (Accession No, Book Title, Author, Publisher, Subject, Copies, Rack, Price)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleBookExcel}
+                  className="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Book Template (.xlsx)</span>
+                </button>
+              </div>
+
+              {/* Step 2: Upload Excel Box */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-warm-900 dark:text-white block">Step 2: Upload Filled Book Spreadsheet (.xlsx / .csv)</label>
+                <div 
+                  onClick={() => bookFileInputRef.current?.click()}
+                  className="p-6 border-2 border-dashed border-warm-300 dark:border-slate-700 hover:border-emerald-500 rounded-2xl bg-warm-50/50 dark:bg-darkbg-base/50 text-center cursor-pointer transition-all space-y-2"
+                >
+                  <Upload className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
+                  <div className="text-xs font-semibold text-warm-900 dark:text-white">
+                    {excelBookFileName ? (
+                      <span className="text-emerald-600 font-bold">{excelBookFileName} ({excelBooks.length} books loaded)</span>
+                    ) : (
+                      <span>Click to browse or drag & drop your Book Catalog Excel file here</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">Supports Microsoft Excel (.xlsx, .xls) and CSV</p>
+                  <input
+                    type="file"
+                    ref={bookFileInputRef}
+                    onChange={handleBookExcelFileChange}
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Result Summary if any */}
+              {bookImportResult && (
+                <div className={`p-4 rounded-xl border ${bookImportResult.success ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
+                  <div className="flex items-center space-x-2 font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{bookImportResult.message}</span>
+                  </div>
+                  {bookImportResult.errorsCount > 0 && (
+                    <div className="mt-2 text-[11px] space-y-1">
+                      <span className="font-bold text-rose-600">Skipped {bookImportResult.errorsCount} books due to duplicates/errors:</span>
+                      <ul className="list-disc list-inside text-slate-600 dark:text-slate-400">
+                        {bookImportResult.errors.map((e, idx) => (
+                          <li key={idx}>Row {e.row}: {e.book || ''} - {e.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Preview Table */}
+              {excelBooks.length > 0 && !bookImportResult && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Parsed Book Catalog Preview ({excelBooks.length} rows)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Showing first 25 items</span>
+                  </div>
+                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-52 overflow-y-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-warm-100/60 dark:bg-darkbg-base text-[10px] font-bold text-slate-600 border-b">
+                          <th className="px-3 py-2">#</th>
+                          <th className="px-3 py-2">Accession No</th>
+                          <th className="px-3 py-2">Book Title</th>
+                          <th className="px-3 py-2">Author</th>
+                          <th className="px-3 py-2">Subject</th>
+                          <th className="px-3 py-2">Copies</th>
+                          <th className="px-3 py-2">Rack/Shelf</th>
+                          <th className="px-3 py-2 text-right">Price (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-warm-200/40 font-medium">
+                        {excelBooks.slice(0, 25).map((row, i) => (
+                          <tr key={i} className="hover:bg-warm-50/50">
+                            <td className="px-3 py-1.5 text-slate-400 font-mono">{i + 1}</td>
+                            <td className="px-3 py-1.5 font-bold font-mono text-brand-600">{row['Accession No'] || row.bookNo || '-'}</td>
+                            <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{row['Book Title'] || row.title || '-'}</td>
+                            <td className="px-3 py-1.5 text-slate-600">{row.Author || row.author || '-'}</td>
+                            <td className="px-3 py-1.5">{row['Subject / Department'] || row.subject || '-'}</td>
+                            <td className="px-3 py-1.5 font-bold">{row['Total Copies'] || row.totalCopies || 1}</td>
+                            <td className="px-3 py-1.5">{row['Shelf / Rack Location'] || row.shelfLocation || '-'}</td>
+                            <td className="px-3 py-1.5 text-right font-black">₹{row['Price (₹)'] || row.price || 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/30 dark:bg-darkbg-base/30">
+              <span className="text-[11px] text-slate-400 font-medium">
+                {excelBooks.length > 0 ? `${excelBooks.length} books ready to catalog` : 'Select an Excel file to begin'}
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkBookModal(false)}
+                  className="px-4 py-2 bg-warm-100 hover:bg-warm-200 dark:bg-darkbg-base dark:text-slate-200 rounded-xl text-xs font-bold"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteBulkBookImport}
+                  disabled={importingBooks || excelBooks.length === 0}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{importingBooks ? 'Cataloging Books...' : `Import ${excelBooks.length} Books`}</span>
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

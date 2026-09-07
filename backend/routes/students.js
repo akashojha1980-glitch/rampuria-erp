@@ -9,6 +9,9 @@ const Course = require('../models/Course');
 const FeePayment = require('../models/FeePayment');
 const BookIssue = require('../models/BookIssue');
 const Book = require('../models/Book');
+const Result = require('../models/Result');
+const AppSetting = require('../models/AppSetting');
+const { getRegConfig, formatRegId } = require('./settings');
 const { protect } = require('../middleware/auth');
 
 const mapId = (instance) => {
@@ -773,4 +776,208 @@ router.delete('/:id', protect, async (req, res) => {
   }
 });
 
+// @desc    Bulk import students from Excel / CSV
+// @route   POST /api/students/bulk-import
+// @access  Private
+router.post('/bulk-import', protect, async (req, res) => {
+  try {
+    const { students = [], defaultSession = '2025-26', defaultCourse = 'LL.B. (3 Year)' } = req.body;
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ message: 'No student data rows provided for import' });
+    }
+
+    const config = await getRegConfig();
+    let currentRegNum = config.currentNumber;
+
+    // Get max srNo
+    const lastStudent = await Student.findOne({
+      attributes: ['srNo'],
+      order: [['srNo', 'DESC']]
+    });
+    let currentSrNo = lastStudent && lastStudent.srNo ? lastStudent.srNo + 1 : 1;
+
+    const imported = [];
+    const errors = [];
+
+    for (let i = 0; i < students.length; i++) {
+      const row = students[i];
+      const rowNum = i + 1;
+
+      try {
+        const fullName = (row.fullName || row['Full Name'] || row.name || row['Student Name'] || '').trim();
+        if (!fullName) {
+          errors.push({ row: rowNum, error: 'Student Name / Full Name is missing' });
+          continue;
+        }
+
+        const courseApplied = (row.courseApplied || row['Course Applied'] || row.course || row.Course || defaultCourse).trim();
+        const academicSession = (row.academicSession || row['Academic Session'] || row.session || row.Session || defaultSession).trim();
+        const email = (row.email || row.Email || `student_${Date.now()}_${i}@college.local`).trim();
+        const mobileNumber = String(row.mobileNumber || row['Mobile Number'] || row.mobile || row.Mobile || '').trim() || '0000000000';
+
+        // Check if email already exists
+        const emailExists = await Student.findOne({ where: { email } });
+        const cleanEmail = emailExists ? `student_${Date.now()}_${i}@college.local` : email;
+
+        // Registration ID: use if provided, else auto-generate sequentially
+        let registrationId = (row.registrationId || row['Registration ID'] || row.regNo || row['Reg No'] || '').trim();
+        if (registrationId) {
+          const idExists = await Student.findOne({ where: { registrationId } });
+          if (idExists) {
+            registrationId = formatRegId(currentRegNum++, config, academicSession);
+          }
+        } else {
+          registrationId = formatRegId(currentRegNum++, config, academicSession);
+        }
+
+        const newStudent = await Student.create({
+          srNo: currentSrNo++,
+          registrationId,
+          fullName,
+          fatherName: (row.fatherName || row["Father's Name"] || row.FatherName || '').trim(),
+          motherName: (row.motherName || row["Mother's Name"] || row.MotherName || '').trim(),
+          mobileNumber,
+          alternateMobile: String(row.alternateMobile || row['Alt Mobile'] || '').trim(),
+          email: cleanEmail,
+          gender: (row.gender || row.Gender || 'Male').trim(),
+          dateOfBirth: row.dateOfBirth || row.dob || row.DOB || '2000-01-01',
+          address: (row.address || row.Address || '').trim(),
+          city: (row.city || row.City || 'Bikaner').trim(),
+          state: (row.state || row.State || 'Rajasthan').trim(),
+          pincode: String(row.pincode || row.Pincode || '334001').trim(),
+          category: (row.category || row.Category || 'General').trim(),
+          courseApplied,
+          academicSession,
+          academicYear: (row.academicYear || row['Academic Year'] || row.year || '1st Year').trim(),
+          semester: (row.semester || row.Semester || '1st Semester').trim(),
+          admissionBase: (row.admissionBase || row['Admission Base'] || 'UG').trim(),
+          formNo: String(row.formNo || row['Form No'] || '').trim(),
+          studentAccNo: String(row.studentAccNo || row['Student Acc No'] || '').trim(),
+          medium: (row.medium || row.Medium || 'Hindi').trim(),
+          permanentAddress: (row.permanentAddress || row['Permanent Address'] || row.address || '').trim(),
+          parentsContact: String(row.parentsContact || row['Parents Contact'] || '').trim(),
+          whatsAppNo: String(row.whatsAppNo || row['WhatsApp No'] || '').trim(),
+          aadharNo: String(row.aadharNo || row['Aadhar No'] || '').trim(),
+          yearlyIncomeFather: String(row.yearlyIncomeFather || row['Father Income'] || '').trim(),
+          yearlyIncomeMother: String(row.yearlyIncomeMother || row['Mother Income'] || '').trim(),
+          
+          // Academic 10th
+          marks10: String(row.marks10 || row['10th %'] || row['10th Marks'] || '').trim(),
+          board10: (row.board10 || row['10th Board'] || '').trim(),
+          passingYear10: String(row.passingYear10 || row['10th Year'] || '').trim(),
+          maxMarks10: String(row.maxMarks10 || row['10th Max'] || '').trim(),
+          obtainedMarks10: String(row.obtainedMarks10 || row['10th Obtained'] || '').trim(),
+          
+          // Academic 12th
+          marks12: String(row.marks12 || row['12th %'] || row['12th Marks'] || '').trim(),
+          board12: (row.board12 || row['12th Board'] || '').trim(),
+          passingYear12: String(row.passingYear12 || row['12th Year'] || '').trim(),
+          subject12: (row.subject12 || row['12th Subject'] || '').trim(),
+          maxMarks12: String(row.maxMarks12 || row['12th Max'] || '').trim(),
+          obtainedMarks12: String(row.obtainedMarks12 || row['12th Obtained'] || '').trim(),
+
+          // Graduation / Qualifying
+          gradUniversity: (row.gradUniversity || row['Graduation University'] || '').trim(),
+          gradYear: String(row.gradYear || row['Graduation Year'] || '').trim(),
+          gradSubject: (row.gradSubject || row['Graduation Subject'] || '').trim(),
+          gradMaxMarks: String(row.gradMaxMarks || row['Grad Max'] || '').trim(),
+          gradObtainedMarks: String(row.gradObtainedMarks || row['Grad Obtained'] || '').trim(),
+          gradPercentage: String(row.gradPercentage || row['Grad %'] || '').trim(),
+
+          verificationStatus: 'Verified' // bulk imports default to verified
+        });
+
+        imported.push(mapId(newStudent));
+      } catch (err) {
+        errors.push({ row: rowNum, student: row.fullName || `Row ${rowNum}`, error: err.message });
+      }
+    }
+
+    // Update registration number config counter
+    config.currentNumber = currentRegNum;
+    const setting = await AppSetting.findOne({ where: { key: 'reg_number_config' } });
+    if (setting) {
+      await setting.update({ value: JSON.stringify(config) });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully imported ${imported.length} student(s) into registry`,
+      count: imported.length,
+      errorsCount: errors.length,
+      errors,
+      imported
+    });
+  } catch (error) {
+    console.error('[Bulk Import Students] error:', error.message);
+    res.status(500).json({ message: error.message || 'Server error during bulk student import' });
+  }
+});
+
+// @desc    Get Student 360 Comprehensive Dossier / Complete Master Record
+// @route   GET /api/students/:id/360-dossier
+// @access  Private
+router.get('/:id/360-dossier', protect, async (req, res) => {
+  try {
+    const student = await Student.findByPk(req.params.id);
+    if (!student) {
+      return res.status(404).json({ message: 'Student profile not found' });
+    }
+
+    const studentData = mapId(student);
+
+    // 1. Fetch all Exam Results
+    const results = await Result.findAll({
+      where: { studentId: student.id },
+      order: [['academicSession', 'DESC'], ['semester', 'DESC'], ['createdAt', 'DESC']]
+    });
+
+    // 2. Fetch all Fee Payments
+    const feePayments = await FeePayment.findAll({
+      where: { studentId: student.id },
+      order: [['paymentDate', 'DESC'], ['createdAt', 'DESC']]
+    });
+
+    // Compute fee summary
+    let totalPaid = 0;
+    let totalDue = 0;
+    feePayments.forEach(p => {
+      totalPaid += Number(p.amountPaid) || 0;
+      if (p.amountDue !== undefined && p.amountDue !== null) {
+        totalDue = Number(p.amountDue);
+      }
+    });
+
+    // 3. Fetch Library Issue/Return history
+    const bookIssues = await BookIssue.findAll({
+      where: { studentId: student.id },
+      include: [{
+        model: Book,
+        as: 'book',
+        attributes: ['bookNo', 'title', 'author', 'shelfLocation']
+      }],
+      order: [['issueDate', 'DESC']]
+    });
+
+    res.json({
+      student: studentData,
+      results: results.map(mapId),
+      feePayments: feePayments.map(mapId),
+      feeSummary: {
+        totalPaid,
+        totalDue,
+        hasPaidRecord: feePayments.length > 0,
+        isCleared: feePayments.length > 0 && totalDue === 0
+      },
+      bookIssues: bookIssues.map(mapId),
+      documents: student.documents || {}
+    });
+  } catch (error) {
+    console.error('[Student 360 Dossier] error:', error.message);
+    res.status(500).json({ message: error.message || 'Error fetching student 360 dossier' });
+  }
+});
+
 module.exports = router;
+

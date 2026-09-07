@@ -16,6 +16,7 @@ import Loading from './components/Loading';
 import { SessionProvider } from './context/SessionContext';
 import Promotion from './pages/Promotion';
 import Results from './pages/Results';
+import StudentDossier from './pages/StudentDossier';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -100,6 +101,8 @@ function AppRoutes() {
           <Route path="users" element={<PermissionGuard permission="users"><UserManagement /></PermissionGuard>} />
           <Route path="reports" element={<PermissionGuard permission="reports"><Reports /></PermissionGuard>} />
           <Route path="profile/:id" element={<ProfileCard />} />
+          <Route path="dossier" element={<StudentDossier />} />
+          <Route path="dossier/:id" element={<StudentDossier />} />
         </Route>
 
         {/* Route fallbacks */}

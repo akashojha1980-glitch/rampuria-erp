@@ -128,4 +128,149 @@ router.delete('/documents/:key', protect, async (req, res) => {
   }
 });
 
+// ─── REGISTRATION NUMBER SEQUENCE SETTINGS ───
+const AppSetting = require('../models/AppSetting');
+const Student = require('../models/Student');
+
+const DEFAULT_REG_CONFIG = {
+  prefix: 'BJS/',
+  suffix: '',
+  startNumber: 1001,
+  currentNumber: 1001,
+  padding: 4,
+  includeYear: false,
+  includeSession: false
+};
+
+// Helper to get or initialize registration config
+async function getRegConfig() {
+  const setting = await AppSetting.findOne({ where: { key: 'reg_number_config' } });
+  if (!setting) {
+    await AppSetting.create({
+      key: 'reg_number_config',
+      value: JSON.stringify(DEFAULT_REG_CONFIG),
+      description: 'Registration Number generation format and counter sequence'
+    });
+    return { ...DEFAULT_REG_CONFIG };
+  }
+  try {
+    return { ...DEFAULT_REG_CONFIG, ...JSON.parse(setting.value) };
+  } catch {
+    return { ...DEFAULT_REG_CONFIG };
+  }
+}
+
+// Format a number with prefix/padding
+function formatRegId(number, config, session) {
+  const padded = String(number).padStart(config.padding || 4, '0');
+  let result = config.prefix || '';
+  if (config.includeSession && session) {
+    result += `${session}/`;
+  }
+  if (config.includeYear) {
+    result += `${new Date().getFullYear()}/`;
+  }
+  result += padded;
+  if (config.suffix) {
+    result += config.suffix;
+  }
+  return result;
+}
+
+// @desc    Get Registration Number Settings & Preview
+// @route   GET /api/settings/reg-number
+// @access  Private
+router.get('/reg-number', protect, async (req, res) => {
+  try {
+    const config = await getRegConfig();
+    const nextPreview = formatRegId(config.currentNumber, config, '2025-26');
+    const totalStudents = await Student.count();
+
+    res.json({
+      config,
+      nextPreview,
+      totalStudents
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Update Registration Number Settings
+// @route   PUT /api/settings/reg-number
+// @access  Private
+router.put('/reg-number', protect, async (req, res) => {
+  try {
+    const { prefix, suffix, startNumber, currentNumber, padding, includeYear, includeSession } = req.body;
+    const current = await getRegConfig();
+
+    const updated = {
+      prefix: prefix !== undefined ? prefix : current.prefix,
+      suffix: suffix !== undefined ? suffix : current.suffix,
+      startNumber: startNumber !== undefined ? Number(startNumber) : current.startNumber,
+      currentNumber: currentNumber !== undefined ? Number(currentNumber) : current.currentNumber,
+      padding: padding !== undefined ? Number(padding) : current.padding,
+      includeYear: Boolean(includeYear),
+      includeSession: Boolean(includeSession)
+    };
+
+    let setting = await AppSetting.findOne({ where: { key: 'reg_number_config' } });
+    if (!setting) {
+      setting = await AppSetting.create({
+        key: 'reg_number_config',
+        value: JSON.stringify(updated),
+        description: 'Registration Number format settings'
+      });
+    } else {
+      await setting.update({ value: JSON.stringify(updated) });
+    }
+
+    res.json({
+      message: 'Registration number settings updated successfully',
+      config: updated,
+      nextPreview: formatRegId(updated.currentNumber, updated, '2025-26')
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Renumber existing students sequentially according to custom config
+// @route   POST /api/settings/reg-number/renumber-existing
+// @access  Private
+router.post('/reg-number/renumber-existing', protect, async (req, res) => {
+  try {
+    const config = await getRegConfig();
+    let counter = config.startNumber;
+
+    const students = await Student.findAll({
+      order: [['createdAt', 'ASC'], ['id', 'ASC']]
+    });
+
+    for (const student of students) {
+      const regId = formatRegId(counter, config, student.academicSession);
+      await student.update({ registrationId: regId });
+      counter++;
+    }
+
+    // Save updated currentNumber
+    config.currentNumber = counter;
+    const setting = await AppSetting.findOne({ where: { key: 'reg_number_config' } });
+    if (setting) {
+      await setting.update({ value: JSON.stringify(config) });
+    }
+
+    res.json({
+      message: `Successfully renumbered ${students.length} students with prefix ${config.prefix}`,
+      count: students.length,
+      nextNumber: counter
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
+module.exports.getRegConfig = getRegConfig;
+module.exports.formatRegId = formatRegId;
+

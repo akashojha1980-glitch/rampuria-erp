@@ -226,4 +226,176 @@ router.get('/admissions', protect, async (req, res) => {
   }
 });
 
+// @desc    Get Detailed Fees Posting List / Collection Register
+// @route   GET /api/reports/fees-posting
+// @access  Private
+router.get('/fees-posting', protect, async (req, res) => {
+  const { startDate, endDate, session, course, paymentMode, feeHead, search } = req.query;
+
+  try {
+    const where = {};
+    if (startDate && endDate) {
+      where.paymentDate = { [Op.between]: [startDate, endDate] };
+    } else if (startDate) {
+      where.paymentDate = { [Op.gte]: startDate };
+    } else if (endDate) {
+      where.paymentDate = { [Op.lte]: endDate };
+    }
+
+    if (paymentMode && paymentMode !== 'All') {
+      where.paymentMode = paymentMode;
+    }
+
+    if (feeHead && feeHead !== 'All') {
+      where.feeHead = feeHead;
+    }
+
+    const studentWhere = {};
+    if (session && session !== 'All') {
+      studentWhere.academicSession = session;
+    }
+    if (course && course !== 'All') {
+      studentWhere.courseApplied = course;
+    }
+    if (search) {
+      studentWhere[Op.or] = [
+        { fullName: { [Op.like]: `%${search}%` } },
+        { registrationId: { [Op.like]: `%${search}%` } },
+        { mobileNumber: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    const transactions = await FeePayment.findAll({
+      where,
+      include: [{
+        model: Student,
+        as: 'student',
+        attributes: [
+          'id', 'fullName', 'registrationId', 'courseApplied', 
+          'academicSession', 'academicYear', 'semester', 'mobileNumber', 'fatherName'
+        ],
+        where: Object.keys(studentWhere).length > 0 ? studentWhere : undefined
+      }],
+      order: [['paymentDate', 'DESC'], ['createdAt', 'DESC']]
+    });
+
+    let totalAmount = 0;
+    const modeBreakdown = { Cash: 0, UPI: 0, Bank: 0, Cheque: 0, Online: 0, Other: 0 };
+    const headBreakdown = {};
+
+    const records = transactions.map(t => {
+      const obj = mapId(t);
+      obj._id = obj.id;
+      if (obj.student) obj.student._id = obj.student.id;
+
+      const amt = Number(obj.amountPaid) || 0;
+      totalAmount += amt;
+
+      const modeKey = (obj.paymentMode || 'Other');
+      if (modeBreakdown[modeKey] !== undefined) {
+        modeBreakdown[modeKey] += amt;
+      } else {
+        modeBreakdown.Other += amt;
+      }
+
+      const headKey = obj.feeHead || 'General / Tuition';
+      headBreakdown[headKey] = (headBreakdown[headKey] || 0) + amt;
+
+      return obj;
+    });
+
+    res.json({
+      totalAmount,
+      totalTransactions: records.length,
+      modeBreakdown,
+      headBreakdown,
+      records
+    });
+  } catch (err) {
+    console.error('[Reports Fees-Posting API] error:', err.message);
+    res.status(500).json({ message: 'Server error generating fees posting list' });
+  }
+});
+
+// @desc    Get Day Book (Daily Cash / Inflow Accounting Register)
+// @route   GET /api/reports/day-book
+// @access  Private
+router.get('/day-book', protect, async (req, res) => {
+  const { date, endDate, session, paymentMode } = req.query;
+
+  try {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    const where = {};
+
+    if (endDate && endDate !== targetDate) {
+      where.paymentDate = { [Op.between]: [targetDate, endDate] };
+    } else {
+      where.paymentDate = targetDate;
+    }
+
+    if (paymentMode && paymentMode !== 'All') {
+      where.paymentMode = paymentMode;
+    }
+
+    const studentWhere = {};
+    if (session && session !== 'All') {
+      studentWhere.academicSession = session;
+    }
+
+    const transactions = await FeePayment.findAll({
+      where,
+      include: [{
+        model: Student,
+        as: 'student',
+        attributes: [
+          'id', 'fullName', 'registrationId', 'courseApplied', 
+          'academicSession', 'academicYear', 'semester', 'mobileNumber'
+        ],
+        where: Object.keys(studentWhere).length > 0 ? studentWhere : undefined
+      }],
+      order: [['createdAt', 'ASC'], ['id', 'ASC']]
+    });
+
+    let totalAmount = 0;
+    let cashTotal = 0;
+    let upiTotal = 0;
+    let bankTotal = 0;
+    let chequeTotal = 0;
+
+    const vouchers = transactions.map((t, index) => {
+      const obj = mapId(t);
+      obj._id = obj.id;
+      if (obj.student) obj.student._id = obj.student.id;
+      obj.voucherNo = `VR-${String(index + 1).padStart(4, '0')}`;
+
+      const amt = Number(obj.amountPaid) || 0;
+      totalAmount += amt;
+
+      const pMode = (obj.paymentMode || '').toLowerCase();
+      if (pMode === 'cash') cashTotal += amt;
+      else if (pMode === 'upi' || pMode === 'online') upiTotal += amt;
+      else if (pMode === 'bank transfer' || pMode === 'bank' || pMode === 'neft' || pMode === 'rtgs') bankTotal += amt;
+      else if (pMode === 'cheque' || pMode === 'dd') chequeTotal += amt;
+      else upiTotal += amt;
+
+      return obj;
+    });
+
+    res.json({
+      reportDate: targetDate,
+      endDate: endDate || targetDate,
+      totalAmount,
+      cashTotal,
+      upiTotal,
+      bankTotal,
+      chequeTotal,
+      voucherCount: vouchers.length,
+      vouchers
+    });
+  } catch (err) {
+    console.error('[Reports Day-Book API] error:', err.message);
+    res.status(500).json({ message: 'Server error generating day book' });
+  }
+});
+
 module.exports = router;

@@ -91,6 +91,85 @@ router.post('/books', protect, async (req, res) => {
   }
 });
 
+// @desc    Bulk import books from Excel / CSV
+// @route   POST /api/library/books/bulk-import
+// @access  Private
+router.post('/books/bulk-import', protect, async (req, res) => {
+  try {
+    const { books = [], defaultSubject = 'General Law' } = req.body;
+
+    if (!Array.isArray(books) || books.length === 0) {
+      return res.status(400).json({ message: 'No book records provided for import' });
+    }
+
+    const imported = [];
+    const errors = [];
+
+    for (let i = 0; i < books.length; i++) {
+      const row = books[i];
+      const rowNum = i + 1;
+
+      try {
+        const title = (row.title || row.Title || row['Book Title'] || '').trim();
+        if (!title) {
+          errors.push({ row: rowNum, error: 'Book Title is required' });
+          continue;
+        }
+
+        let bookNo = String(row.bookNo || row.BookNo || row['Accession No'] || row['Book No'] || row.accessionNo || '').trim();
+        if (!bookNo) {
+          bookNo = `LIB-${Date.now()}-${i + 1}`;
+        }
+
+        // Duplicate check
+        const duplicate = await Book.findOne({ where: { bookNo } });
+        if (duplicate) {
+          errors.push({ row: rowNum, bookNo, error: `Book Accession No #${bookNo} already exists in library catalog` });
+          continue;
+        }
+
+        const totalCopies = Number(row.totalCopies || row['Total Copies'] || row.copies || row.Copies || 1) || 1;
+        const author = (row.author || row.Author || 'Unknown Author').trim();
+        const publisher = (row.publisher || row.Publisher || '').trim();
+        const subject = (row.subject || row.Subject || row.Category || row.Department || defaultSubject).trim();
+        const shelfLocation = (row.shelfLocation || row['Shelf Location'] || row.shelf || row.Location || '').trim();
+        const price = row.price || row.Price ? Number(row.price || row.Price) : null;
+        const remarks = (row.remarks || row.Remarks || '').trim();
+
+        const createdBook = await Book.create({
+          bookNo,
+          title,
+          author,
+          publisher,
+          subject,
+          totalCopies,
+          availableCopies: totalCopies,
+          shelfLocation,
+          price,
+          remarks,
+          isHidden: false
+        });
+
+        imported.push(mapId(createdBook));
+      } catch (err) {
+        errors.push({ row: rowNum, book: row.title || `Row ${rowNum}`, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully imported ${imported.length} book(s) into library catalog`,
+      count: imported.length,
+      errorsCount: errors.length,
+      errors,
+      imported
+    });
+  } catch (error) {
+    console.error('[Bulk Import Books] error:', error.message);
+    res.status(500).json({ message: error.message || 'Server error importing books' });
+  }
+});
+
 // @desc    Update book details
 // @route   PUT /api/library/books/:id
 // @access  Private

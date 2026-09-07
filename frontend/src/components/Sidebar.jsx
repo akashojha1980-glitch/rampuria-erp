@@ -20,6 +20,7 @@ const Sidebar = () => {
   const allNavItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard className="w-5 h-5" />, key: 'dashboard' },
     { name: 'Registration', path: '/registration', icon: <UserPlus className="w-5 h-5" />, key: 'registration' },
+    { name: 'Student 360 Dossier', path: '/dossier', icon: <FileText className="w-5 h-5" />, key: 'registration' },
     { name: 'Verification', path: '/verification', icon: <FileCheck className="w-5 h-5" />, key: 'verification' },
     { name: 'Promotion', path: '/promotion', icon: <GraduationCap className="w-5 h-5" />, key: 'verification' },
     { name: 'Exam Results', path: '/results', icon: <Award className="w-5 h-5" />, key: 'verification' },

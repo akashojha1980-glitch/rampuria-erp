@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, Plus, Filter, Download, ArrowLeft,
-  ChevronLeft, ChevronRight, Edit2, Trash2, Eye, Calendar, TrendingUp
+  ChevronLeft, ChevronRight, Edit2, Trash2, Eye, Calendar, TrendingUp,
+  FileSpreadsheet, Settings, Upload, CheckCircle2, AlertTriangle, X, RefreshCw
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
@@ -35,6 +37,29 @@ const Registration = () => {
     semester: 'Annual'
   });
   const [submittingBulkPromotion, setSubmittingBulkPromotion] = useState(false);
+
+  // Bulk Excel Import States
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [excelRows, setExcelRows] = useState([]);
+  const [excelFileName, setExcelFileName] = useState('');
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Registration Number Format Settings States
+  const [showRegSettingsModal, setShowRegSettingsModal] = useState(false);
+  const [regConfig, setRegConfig] = useState({
+    prefix: 'BJS/',
+    suffix: '',
+    startNumber: 1001,
+    currentNumber: 1001,
+    padding: 4,
+    includeYear: false,
+    includeSession: false
+  });
+  const [regPreview, setRegPreview] = useState('');
+  const [savingRegConfig, setSavingRegConfig] = useState(false);
+  const [renumbering, setRenumbering] = useState(false);
 
   // Form States (for registering/editing)
   const [isEditing, setIsEditing] = useState(false);
@@ -200,6 +225,7 @@ const Registration = () => {
 
   useEffect(() => {
     fetchCourses();
+    fetchRegSettings();
   }, []);
 
   useEffect(() => {
@@ -207,6 +233,219 @@ const Registration = () => {
       fetchStudents();
     }
   }, [activeTab, page, courseFilter, statusFilter, categoryFilter]);
+
+  // Download Sample Excel Template for Students
+  const handleDownloadSampleExcel = () => {
+    const sampleData = [
+      {
+        'Full Name': 'Aakash Sharma',
+        "Father's Name": 'Rajesh Sharma',
+        "Mother's Name": 'Sunita Sharma',
+        'Mobile Number': '9876543210',
+        'Email': 'aakash.sharma@example.com',
+        'Gender': 'Male',
+        'Date of Birth': '2002-05-15',
+        'Category': 'General',
+        'Address': '123 Sadul Colony, Bikaner',
+        'City': 'Bikaner',
+        'State': 'Rajasthan',
+        'Pincode': '334001',
+        'Course Applied': 'LL.B. (3 Year)',
+        'Academic Session': '2025-26',
+        'Academic Year': '1st Year',
+        'Semester': '1st Semester',
+        '10th %': '82.5',
+        '10th Board': 'RBSE',
+        '10th Year': '2018',
+        '12th %': '79.0',
+        '12th Board': 'RBSE',
+        '12th Year': '2020',
+        '12th Subject': 'Arts',
+        'Graduation University': 'MGSU Bikaner',
+        'Graduation Year': '2023',
+        'Grad %': '68.5',
+        'Aadhar No': '123456789012',
+        'Form No': 'F-2025-001',
+        'Registration ID (Optional)': ''
+      },
+      {
+        'Full Name': 'Priya Choudhary',
+        "Father's Name": 'Ramesh Choudhary',
+        "Mother's Name": 'Kamla Devi',
+        'Mobile Number': '9123456780',
+        'Email': 'priya.choudhary@example.com',
+        'Gender': 'Female',
+        'Date of Birth': '2003-08-20',
+        'Category': 'OBC',
+        'Address': '45 Kanta Khaturia Colony, Bikaner',
+        'City': 'Bikaner',
+        'State': 'Rajasthan',
+        'Pincode': '334003',
+        'Course Applied': 'B.A. LL.B. (5 Year)',
+        'Academic Session': '2025-26',
+        'Academic Year': '1st Year',
+        'Semester': '1st Semester',
+        '10th %': '88.0',
+        '10th Board': 'CBSE',
+        '10th Year': '2019',
+        '12th %': '85.4',
+        '12th Board': 'CBSE',
+        '12th Year': '2021',
+        '12th Subject': 'Humanities',
+        'Graduation University': '',
+        'Graduation Year': '',
+        'Grad %': '',
+        'Aadhar No': '987654321098',
+        'Form No': 'F-2025-002',
+        'Registration ID (Optional)': ''
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+    XLSX.writeFile(workbook, 'Student_Bulk_Import_Sample_Template.xlsx');
+    showToastMsg('Downloaded Student Bulk Import Template (.xlsx)');
+  };
+
+  // Read Excel File
+  const handleExcelFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setExcelFileName(file.name);
+    setImportResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        if (!data || data.length === 0) {
+          showToastMsg('The uploaded Excel sheet contains no data rows', 'error');
+          setExcelRows([]);
+          return;
+        }
+
+        setExcelRows(data);
+        showToastMsg(`Parsed ${data.length} student rows from ${file.name}`);
+      } catch (err) {
+        console.error('Excel parse error:', err);
+        showToastMsg('Failed to parse Excel file. Please ensure it is a valid .xlsx or .csv file.', 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  // Execute Bulk Import API
+  const handleExecuteBulkImport = async () => {
+    if (excelRows.length === 0) {
+      showToastMsg('No student records to import', 'error');
+      return;
+    }
+
+    setImportingExcel(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/students/bulk-import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ students: excelRows })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult(data);
+        showToastMsg(`Bulk import complete: ${data.count} students registered!`);
+        fetchStudents();
+      } else {
+        showToastMsg(data.message || 'Error during bulk import', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server connection failed', 'error');
+    } finally {
+      setImportingExcel(false);
+    }
+  };
+
+  // Fetch Registration Number Settings
+  const fetchRegSettings = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/settings/reg-number', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setRegConfig(data.config || {});
+        setRegPreview(data.nextPreview || '');
+      }
+    } catch (err) {
+      console.error('Failed to load reg settings', err);
+    }
+  };
+
+  // Save Registration Number Settings
+  const handleSaveRegSettings = async (e) => {
+    e.preventDefault();
+    setSavingRegConfig(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/settings/reg-number', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(regConfig)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToastMsg(data.message || 'Registration settings saved');
+        setRegPreview(data.nextPreview || '');
+      } else {
+        showToastMsg(data.message || 'Failed to update settings', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server connection failed', 'error');
+    } finally {
+      setSavingRegConfig(false);
+    }
+  };
+
+  // Renumber existing students in sequence
+  const handleRenumberExisting = async () => {
+    if (!window.confirm('Are you sure you want to renumber all existing students in sequence? This will overwrite registration numbers for past students.')) {
+      return;
+    }
+
+    setRenumbering(true);
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch('/api/settings/reg-number/renumber-existing', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToastMsg(data.message || 'Renumbered existing students successfully');
+        fetchStudents();
+        fetchRegSettings();
+      } else {
+        showToastMsg(data.message || 'Error renumbering students', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server connection failed', 'error');
+    } finally {
+      setRenumbering(false);
+    }
+  };
 
   // Handle Search Submit
   const handleSearch = (e) => {
@@ -531,7 +770,27 @@ const Registration = () => {
                 </form>
 
                 {/* Operations */}
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => { setShowBulkImportModal(true); setImportResult(null); setExcelRows([]); setExcelFileName(''); }}
+                    className="px-3.5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
+                    title="Bulk register past and new students from Excel sheet"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Bulk Import (Excel)</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => { setShowRegSettingsModal(true); fetchRegSettings(); }}
+                    className="p-3 rounded-xl bg-warm-100 dark:bg-darkbg-base hover:bg-warm-200 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center space-x-1.5"
+                    title="Configure Registration Number Format & Starting Sequence"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Reg No. Settings</span>
+                  </button>
+
                   <button 
                     onClick={handleOpenRegister}
                     className="classy-btn-primary py-3"
@@ -1684,6 +1943,332 @@ const Registration = () => {
           </div>
         </div>
       )}
+
+      {/* MODAL 1: BULK EXCEL IMPORT */}
+      {showBulkImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-warm-900/80 dark:bg-black/85 backdrop-blur-md p-4 animate-fade-in no-print">
+          <div className="bg-white dark:bg-darkbg-surface border border-warm-200 dark:border-darkbg-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/50 dark:bg-darkbg-base/50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-warm-900 dark:text-white">Bulk Student Excel Import</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Batch register past or new student records into college database</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowBulkImportModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              
+              {/* Step 1: Download Sample */}
+              <div className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-200/60 dark:border-brand-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-xs font-bold text-brand-900 dark:text-brand-300">Step 1: Download Standard Excel Format</h4>
+                  <p className="text-[11px] text-brand-800/60 dark:text-brand-400">
+                    Use our official template with pre-built column headers (Name, Father, Mobile, Course, 10th/12th, Aadhar, etc.)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleExcel}
+                  className="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Template (.xlsx)</span>
+                </button>
+              </div>
+
+              {/* Step 2: Upload Excel Box */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-warm-900 dark:text-white block">Step 2: Upload Filled Spreadsheet (.xlsx / .csv)</label>
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-6 border-2 border-dashed border-warm-300 dark:border-slate-700 hover:border-emerald-500 rounded-2xl bg-warm-50/50 dark:bg-darkbg-base/50 text-center cursor-pointer transition-all space-y-2"
+                >
+                  <Upload className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
+                  <div className="text-xs font-semibold text-warm-900 dark:text-white">
+                    {excelFileName ? (
+                      <span className="text-emerald-600 font-bold">{excelFileName} ({excelRows.length} rows loaded)</span>
+                    ) : (
+                      <span>Click to browse or drag & drop your Excel file here</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">Supports Microsoft Excel (.xlsx, .xls) and CSV</p>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleExcelFileChange}
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Result Summary if any */}
+              {importResult && (
+                <div className={`p-4 rounded-xl border ${importResult.success ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
+                  <div className="flex items-center space-x-2 font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{importResult.message}</span>
+                  </div>
+                  {importResult.errorsCount > 0 && (
+                    <div className="mt-2 text-[11px] space-y-1">
+                      <span className="font-bold text-rose-600">Skipped {importResult.errorsCount} rows due to errors:</span>
+                      <ul className="list-disc list-inside text-slate-600 dark:text-slate-400">
+                        {importResult.errors.map((e, idx) => (
+                          <li key={idx}>Row {e.row}: {e.student || ''} - {e.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Preview Table */}
+              {excelRows.length > 0 && !importResult && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Parsed Spreadsheet Preview ({excelRows.length} rows)
+                    </span>
+                    <span className="text-[10px] text-slate-400">Showing first 25 rows</span>
+                  </div>
+                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-52 overflow-y-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-warm-100/60 dark:bg-darkbg-base text-[10px] font-bold text-slate-600 border-b">
+                          <th className="px-3 py-2">#</th>
+                          <th className="px-3 py-2">Full Name</th>
+                          <th className="px-3 py-2">Father Name</th>
+                          <th className="px-3 py-2">Course</th>
+                          <th className="px-3 py-2">Session</th>
+                          <th className="px-3 py-2">Mobile</th>
+                          <th className="px-3 py-2">Category</th>
+                          <th className="px-3 py-2">10th %</th>
+                          <th className="px-3 py-2">12th %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-warm-200/40 font-medium">
+                        {excelRows.slice(0, 25).map((row, i) => (
+                          <tr key={i} className="hover:bg-warm-50/50">
+                            <td className="px-3 py-1.5 text-slate-400 font-mono">{i + 1}</td>
+                            <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{row['Full Name'] || row.fullName || row.name || '-'}</td>
+                            <td className="px-3 py-1.5">{row["Father's Name"] || row.fatherName || '-'}</td>
+                            <td className="px-3 py-1.5 text-brand-600">{row['Course Applied'] || row.courseApplied || row.course || '-'}</td>
+                            <td className="px-3 py-1.5">{row['Academic Session'] || row.academicSession || '2025-26'}</td>
+                            <td className="px-3 py-1.5 font-mono">{row['Mobile Number'] || row.mobileNumber || '-'}</td>
+                            <td className="px-3 py-1.5">{row.Category || row.category || 'General'}</td>
+                            <td className="px-3 py-1.5">{row['10th %'] || row.marks10 || '-'}</td>
+                            <td className="px-3 py-1.5">{row['12th %'] || row.marks12 || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 border-t border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/30 dark:bg-darkbg-base/30">
+              <span className="text-[11px] text-slate-400 font-medium">
+                {excelRows.length > 0 ? `${excelRows.length} records ready to import` : 'Select an Excel file to begin'}
+              </span>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkImportModal(false)}
+                  className="px-4 py-2 bg-warm-100 hover:bg-warm-200 dark:bg-darkbg-base dark:text-slate-200 rounded-xl text-xs font-bold"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteBulkImport}
+                  disabled={importingExcel || excelRows.length === 0}
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{importingExcel ? 'Importing Batch...' : `Import ${excelRows.length} Students`}</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: REGISTRATION NUMBER SEQUENCE SETTINGS */}
+      {showRegSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-warm-900/80 dark:bg-black/85 backdrop-blur-md p-4 animate-fade-in no-print">
+          <div className="bg-white dark:bg-darkbg-surface border border-warm-200 dark:border-darkbg-border w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/50 dark:bg-darkbg-base/50">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-brand-500/10 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-warm-900 dark:text-white">Registration Number Settings</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Configure format prefix & sequential auto-generator</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRegSettingsModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSaveRegSettings} className="p-6 space-y-4">
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Prefix (e.g. BJS/ or RMP/)</label>
+                  <input
+                    type="text"
+                    value={regConfig.prefix || ''}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, prefix: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold"
+                    placeholder="BJS/"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Suffix (Optional)</label>
+                  <input
+                    type="text"
+                    value={regConfig.suffix || ''}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, suffix: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold"
+                    placeholder="e.g. /LAW"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Starting No</label>
+                  <input
+                    type="number"
+                    value={regConfig.startNumber || 1001}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, startNumber: Number(e.target.value) }))}
+                    className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Next Auto No</label>
+                  <input
+                    type="number"
+                    value={regConfig.currentNumber || 1001}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, currentNumber: Number(e.target.value) }))}
+                    className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold text-brand-600"
+                  />
+                </div>
+
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Digit Padding</label>
+                  <select
+                    value={regConfig.padding || 4}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, padding: Number(e.target.value) }))}
+                    className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold"
+                  >
+                    <option value="0">No Padding (1, 2...)</option>
+                    <option value="3">3 Digits (001, 002...)</option>
+                    <option value="4">4 Digits (0001, 0002...)</option>
+                    <option value="5">5 Digits (00001...)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Checkboxes */}
+              <div className="space-y-2 pt-1">
+                <label className="flex items-center space-x-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!regConfig.includeSession}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, includeSession: e.target.checked }))}
+                    className="rounded text-brand-600"
+                  />
+                  <span>Include Academic Session in ID (e.g. BJS/2025-26/1001)</span>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={!!regConfig.includeYear}
+                    onChange={(e) => setRegConfig(prev => ({ ...prev, includeYear: e.target.checked }))}
+                    className="rounded text-brand-600"
+                  />
+                  <span>Include Current Calendar Year (e.g. BJS/2025/1001)</span>
+                </label>
+              </div>
+
+              {/* Dynamic Preview Box */}
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                  Next Registration ID Preview
+                </span>
+                <span className="text-base font-black text-emerald-800 dark:text-emerald-300 font-mono block">
+                  {regConfig.prefix || ''}{regConfig.includeSession ? '2025-26/' : ''}{regConfig.includeYear ? `${new Date().getFullYear()}/` : ''}{String(regConfig.currentNumber || 1001).padStart(regConfig.padding || 4, '0')}{regConfig.suffix || ''}
+                </span>
+              </div>
+
+              {/* Renumber existing button */}
+              <div className="pt-2 border-t border-warm-200 dark:border-darkbg-border">
+                <button
+                  type="button"
+                  onClick={handleRenumberExisting}
+                  disabled={renumbering}
+                  className="w-full py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition-colors flex items-center justify-center space-x-1.5"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${renumbering ? 'animate-spin' : ''}`} />
+                  <span>{renumbering ? 'Renumbering...' : 'Renumber All Existing Records in Database'}</span>
+                </button>
+                <span className="text-[10px] text-slate-400 text-center block mt-1">
+                  Assigns sequential numbers to old students starting from #{regConfig.startNumber}
+                </span>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowRegSettingsModal(false)}
+                  className="px-4 py-2 bg-warm-100 hover:bg-warm-200 text-slate-700 rounded-xl text-xs font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingRegConfig}
+                  className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm"
+                >
+                  {savingRegConfig ? 'Saving...' : 'Save Format Settings'}
+                </button>
+              </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
