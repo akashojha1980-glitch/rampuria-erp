@@ -15,24 +15,30 @@ const mapId = (instance) => {
 // @route   GET /api/fees/dashboard
 // @access  Private (Terminal Admin desk)
 router.get('/dashboard', protect, async (req, res) => {
-  const { search, course, installment, session, page = 1, limit = 50 } = req.query;
+  const { search, course, installment, session, status, page = 1, limit = 50 } = req.query;
   
   try {
     // 1. Build filter conditions
     const where = {};
     const studentWhere = {};
 
-    if (session && session !== 'all') {
+    if (session && session !== 'all' && session !== 'All Sessions') {
       where.academicSession = session;
       studentWhere.academicSession = session;
     }
 
-    if (course) {
+    if (course && course !== 'all') {
       studentWhere.courseApplied = course;
     }
     
-    if (installment) {
+    if (installment && installment !== 'all') {
       where.installmentName = installment;
+    }
+
+    if (status === 'paid') {
+      where.amountDue = 0;
+    } else if (status === 'due') {
+      where.amountDue = { [Op.gt]: 0 };
     }
 
     if (search) {
@@ -43,13 +49,25 @@ router.get('/dashboard', protect, async (req, res) => {
       ];
     }
 
+    // 2. Calculate filtered college metrics
+    const statsWhere = {};
+    if (session && session !== 'all' && session !== 'All Sessions') {
+      statsWhere.academicSession = session;
+    }
+
+    const totalCollected = await FeePayment.sum('amountPaid', { where: statsWhere }) || 0;
+    const totalOutstanding = await FeePayment.sum('amountDue', { where: statsWhere }) || 0;
+    const totalTransactions = await FeePayment.count({ where: statsWhere });
+    const fullyPaidCount = await FeePayment.count({ where: { ...statsWhere, amountDue: 0 } });
+    const pendingDueCount = await FeePayment.count({ where: { ...statsWhere, amountDue: { [Op.gt]: 0 } } });
+
     // 3. Query filtered transaction history
     const { count, rows: transactions } = await FeePayment.findAndCountAll({
       where,
       include: [{
         model: Student,
         as: 'student',
-        attributes: ['fullName', 'registrationId', 'courseApplied', 'srNo', 'formNo'],
+        attributes: ['fullName', 'registrationId', 'courseApplied', 'srNo', 'formNo', 'mobileNumber'],
         where: Object.keys(studentWhere).length > 0 ? studentWhere : undefined
       }],
       order: [['paymentDate', 'DESC'], ['createdAt', 'DESC']],
@@ -62,7 +80,8 @@ router.get('/dashboard', protect, async (req, res) => {
         totalCollected,
         totalOutstanding,
         totalTransactions,
-        uniquePaidStudents
+        fullyPaidCount,
+        pendingDueCount
       },
       transactions: transactions.map(t => {
         const obj = mapId(t);

@@ -69,6 +69,7 @@ app.use('/api/library',   require('./routes/library'));
 app.use('/api/reports',   require('./routes/reports'));
 app.use('/api/sessions',  require('./routes/sessions'));
 app.use('/api/results',   require('./routes/results'));
+app.use('/api/settings',  require('./routes/settings'));
 
 // Health check
 app.get('/api/health', (req, res) => {

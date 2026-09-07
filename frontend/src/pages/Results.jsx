@@ -32,8 +32,22 @@ const Results = () => {
 
   // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBatchModal, setShowBatchModal] = useState(false);
   const [selectedMarksheet, setSelectedMarksheet] = useState(null);
   const [toast, setToast] = useState(null);
+
+  // Mode: 'quick' | 'subject'
+  const [entryMode, setEntryMode] = useState('quick');
+
+  // Batch Marks Entry State
+  const [batchSession, setBatchSession] = useState(activeSession || '2025-26');
+  const [batchCourse, setBatchCourse] = useState('LLB');
+  const [batchYear, setBatchYear] = useState('1st Year');
+  const [batchSemester, setBatchSemester] = useState('Annual');
+  const [batchExamType, setBatchExamType] = useState('Main Annual Exam');
+  const [batchExamMonth, setBatchExamMonth] = useState('May 2026');
+  const [batchStudents, setBatchStudents] = useState([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   // New Marksheet Form State
   const [formData, setFormData] = useState({
@@ -48,6 +62,8 @@ const Results = () => {
     semester: 'Annual',
     examType: 'Main Annual Exam',
     examMonthYear: 'May 2026',
+    totalMaxMarks: 500,
+    totalObtainedMarks: 350,
     remarks: '',
     subjects: [
       { code: 'LLB-101', name: 'Jurisprudence (Legal Theory)', maxMarks: 100, minMarks: 36, theoryMarks: 65, practicalMarks: 0 },
@@ -193,6 +209,7 @@ const Results = () => {
         },
         body: JSON.stringify({
           ...formData,
+          entryMode,
           academicSession: formData.academicSession || activeSession
         })
       });
@@ -204,6 +221,109 @@ const Results = () => {
         fetchResults();
       } else {
         setToast({ type: 'error', message: data.message || 'Error saving result' });
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: 'Server communication error' });
+    }
+  };
+
+  // Load Students for Batch Entry
+  const handleLoadBatchStudents = async () => {
+    setBatchLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/results/class-students?session=${batchSession}&course=${batchCourse}&year=${batchYear}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const studentRows = data.map((st, index) => {
+          const prev = st.existingResult || {};
+          return {
+            studentId: st._id || st.id,
+            registrationId: st.registrationId,
+            rollNo: prev.rollNo || String(10100 + index + 1),
+            studentName: st.fullName,
+            fatherName: st.fatherName || '',
+            totalMaxMarks: prev.totalMaxMarks || 500,
+            totalObtainedMarks: prev.totalObtainedMarks || 350,
+            resultStatus: prev.resultStatus || 'Pass',
+            division: prev.division || 'First Division'
+          };
+        });
+        setBatchStudents(studentRows);
+        if (studentRows.length === 0) {
+          setToast({ type: 'info', message: 'No registered students found matching this class filter.' });
+        }
+      }
+    } catch (e) {
+      setToast({ type: 'error', message: 'Failed to load class students' });
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  // Update a student's marks in batch table
+  const handleBatchMarkChange = (index, field, value) => {
+    const updated = [...batchStudents];
+    updated[index][field] = value;
+    
+    // Auto calculate row % and division
+    const max = Number(updated[index].totalMaxMarks) || 500;
+    const obt = Number(updated[index].totalObtainedMarks) || 0;
+    const pct = max > 0 ? (obt / max) * 100 : 0;
+    
+    if (pct < 36) {
+      updated[index].resultStatus = 'Fail';
+      updated[index].division = 'Fail';
+    } else if (pct >= 60) {
+      updated[index].resultStatus = 'Pass';
+      updated[index].division = 'First Division';
+    } else if (pct >= 48) {
+      updated[index].resultStatus = 'Pass';
+      updated[index].division = 'Second Division';
+    } else {
+      updated[index].resultStatus = 'Pass';
+      updated[index].division = 'Pass Class';
+    }
+
+    setBatchStudents(updated);
+  };
+
+  // Submit all class batch marks
+  const handleSaveBatchMarks = async (e) => {
+    e.preventDefault();
+    if (batchStudents.length === 0) {
+      setToast({ type: 'warning', message: 'No students loaded to save marks' });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/results/batch-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          session: batchSession,
+          course: batchCourse,
+          year: batchYear,
+          semester: batchSemester,
+          examType: batchExamType,
+          examMonthYear: batchExamMonth,
+          records: batchStudents
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setToast({ type: 'success', message: data.message });
+        setShowBatchModal(false);
+        fetchResults();
+      } else {
+        setToast({ type: 'error', message: data.message || 'Error saving batch results' });
       }
     } catch (e) {
       setToast({ type: 'error', message: 'Server communication error' });
@@ -287,9 +407,20 @@ const Results = () => {
               className="px-4 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface hover:bg-warm-100/50 text-warm-900 dark:text-slate-200 text-xs font-bold flex items-center space-x-2 transition-all shadow-sm"
             >
               <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Generate Sample Results</span>
+              <span>Generate Demo Results</span>
             </button>
           )}
+
+          <button
+            onClick={() => {
+              setBatchSession(activeSession || '2025-26');
+              setShowBatchModal(true);
+            }}
+            className="px-4 py-2.5 rounded-xl border border-brand-500/40 bg-brand-500/10 hover:bg-brand-500/20 text-brand-600 dark:text-brand-300 text-xs font-bold flex items-center space-x-2 transition-all shadow-sm active:scale-95"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Class Batch Entry</span>
+          </button>
 
           <button
             onClick={() => {
@@ -303,7 +434,7 @@ const Results = () => {
             className="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold flex items-center space-x-2 transition-all shadow-md shadow-brand-500/20 active:scale-95"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Enter New Marksheet</span>
+            <span>+ Enter Marksheet</span>
           </button>
         </div>
       </div>
@@ -571,6 +702,35 @@ const Results = () => {
             </div>
 
             <form onSubmit={handleSubmitNewResult} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              {/* Mode Selector Toggle: Quick Total vs Subject Wise */}
+              <div className="flex items-center justify-between bg-warm-100/70 dark:bg-darkbg-base p-1.5 rounded-xl border border-warm-200 dark:border-darkbg-border">
+                <span className="text-xs font-bold text-warm-900 dark:text-slate-200 px-2">Marks Entry Mode:</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setEntryMode('quick')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      entryMode === 'quick'
+                        ? 'bg-brand-500 text-white shadow-sm'
+                        : 'text-warm-855 dark:text-slate-400 hover:text-warm-900'
+                    }`}
+                  >
+                    ⚡ Quick Total Marks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEntryMode('subject')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      entryMode === 'subject'
+                        ? 'bg-brand-500 text-white shadow-sm'
+                        : 'text-warm-855 dark:text-slate-400 hover:text-warm-900'
+                    }`}
+                  >
+                    📋 Subject-Wise Matrix
+                  </button>
+                </div>
+              </div>
+
               {/* Pre-fill from Registered Students */}
               <div className="bg-brand-500/5 border border-brand-500/20 p-4 rounded-xl">
                 <label className="block text-xs font-bold text-brand-600 dark:text-brand-400 mb-1.5">
@@ -657,127 +817,200 @@ const Results = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-warm-855 dark:text-slate-400 mb-1">Academic Year</label>
+                  <label className="block text-xs font-medium text-warm-855 dark:text-slate-400 mb-1">Academic Year / Sem</label>
                   <select
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
                     className="w-full text-xs px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-base text-warm-900 dark:text-slate-100"
                   >
-                    <option value="1st Year">1st Year</option>
-                    <option value="2nd Year">2nd Year</option>
-                    <option value="3rd Year">3rd Year</option>
+                    <option value="1st Year">1st Year / 1st Sem</option>
+                    <option value="2nd Year">2nd Year / 3rd Sem</option>
+                    <option value="3rd Year">3rd Year / 5th Sem</option>
                     <option value="Final Year">Final Year</option>
                   </select>
                 </div>
               </div>
 
-              {/* Subject Wise Marks Table */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-warm-900 dark:text-slate-100 uppercase tracking-wider">
-                    Subject Marks Entry
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleAddSubjectRow}
-                    className="text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center space-x-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Subject Paper</span>
-                  </button>
-                </div>
+              {/* MODE 1: QUICK TOTAL MARKS ENTRY */}
+              {entryMode === 'quick' ? (
+                <div className="bg-warm-50 dark:bg-darkbg-base p-5 rounded-2xl border border-warm-200/70 dark:border-darkbg-border space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Sparkles className="w-4 h-4 text-brand-500" />
+                    <h4 className="text-xs font-bold text-warm-900 dark:text-slate-100 uppercase tracking-wider">
+                      Quick Aggregate Marks Entry
+                    </h4>
+                  </div>
 
-                <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-warm-100/60 dark:bg-darkbg-base text-warm-900 dark:text-slate-300 font-bold">
-                      <tr>
-                        <th className="p-3 w-28">Paper Code</th>
-                        <th className="p-3">Paper / Subject Name</th>
-                        <th className="p-3 w-20 text-center">Max Marks</th>
-                        <th className="p-3 w-20 text-center">Min Pass</th>
-                        <th className="p-3 w-24 text-center">Theory Obt</th>
-                        <th className="p-3 w-20 text-center">Pass/Fail</th>
-                        <th className="p-3 w-10 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-warm-200/40 dark:divide-darkbg-border">
-                      {formData.subjects.map((sub, idx) => {
-                        const total = (Number(sub.theoryMarks) || 0) + (Number(sub.practicalMarks) || 0);
-                        const isPass = total >= (Number(sub.minMarks) || 36);
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-warm-855 dark:text-slate-400 mb-1">
+                        Total Maximum Marks *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={formData.totalMaxMarks}
+                        onChange={(e) => setFormData({ ...formData, totalMaxMarks: Number(e.target.value) || 0 })}
+                        className="w-full text-sm font-mono font-bold px-3.5 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100"
+                      />
+                    </div>
 
-                        return (
-                          <tr key={idx} className="bg-white dark:bg-darkbg-surface">
-                            <td className="p-2.5">
-                              <input
-                                type="text"
-                                value={sub.code}
-                                onChange={(e) => {
-                                  const updated = [...formData.subjects];
-                                  updated[idx].code = e.target.value;
-                                  setFormData({ ...formData, subjects: updated });
-                                }}
-                                className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono text-xs"
-                              />
-                            </td>
-                            <td className="p-2.5">
-                              <input
-                                type="text"
-                                value={sub.name}
-                                onChange={(e) => {
-                                  const updated = [...formData.subjects];
-                                  updated[idx].name = e.target.value;
-                                  setFormData({ ...formData, subjects: updated });
-                                }}
-                                className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-xs"
-                              />
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <input
-                                type="number"
-                                value={sub.maxMarks}
-                                onChange={(e) => handleSubjectMarkChange(idx, 'maxMarks', e.target.value)}
-                                className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
-                              />
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <input
-                                type="number"
-                                value={sub.minMarks}
-                                onChange={(e) => handleSubjectMarkChange(idx, 'minMarks', e.target.value)}
-                                className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
-                              />
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <input
-                                type="number"
-                                value={sub.theoryMarks}
-                                onChange={(e) => handleSubjectMarkChange(idx, 'theoryMarks', e.target.value)}
-                                className="w-20 px-2 py-1 rounded-lg border border-brand-500 font-bold text-brand-600 dark:text-brand-400 text-center font-mono text-xs"
-                              />
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                              }`}>
-                                {isPass ? 'Pass' : 'Fail'}
-                              </span>
-                            </td>
-                            <td className="p-2.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSubjectRow(idx)}
-                                className="text-slate-400 hover:text-rose-500 p-1"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                    <div>
+                      <label className="block text-xs font-medium text-warm-855 dark:text-slate-400 mb-1">
+                        Total Obtained Marks *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={formData.totalObtainedMarks}
+                        onChange={(e) => setFormData({ ...formData, totalObtainedMarks: Number(e.target.value) || 0 })}
+                        className="w-full text-sm font-mono font-bold px-3.5 py-2.5 rounded-xl border border-brand-500 bg-white dark:bg-darkbg-surface text-brand-600 dark:text-brand-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Auto-Calculation Preview Pill */}
+                  {formData.totalMaxMarks > 0 && (
+                    <div className="p-3 bg-white dark:bg-darkbg-surface rounded-xl border border-warm-200 dark:border-darkbg-border flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-slate-400 font-bold">Auto Percentage:</span>
+                        <span className="font-mono font-bold text-brand-600 dark:text-brand-400 text-sm">
+                          {((formData.totalObtainedMarks / formData.totalMaxMarks) * 100).toFixed(2)}%
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <span className="text-slate-400 font-bold">Division:</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {((formData.totalObtainedMarks / formData.totalMaxMarks) * 100) >= 60 
+                            ? 'First Division' 
+                            : ((formData.totalObtainedMarks / formData.totalMaxMarks) * 100) >= 48 
+                              ? 'Second Division' 
+                              : 'Pass Class'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                          ((formData.totalObtainedMarks / formData.totalMaxMarks) * 100) >= 36 
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400' 
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-400'
+                        }`}>
+                          {((formData.totalObtainedMarks / formData.totalMaxMarks) * 100) >= 36 ? 'Status: PASS' : 'Status: FAIL'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* MODE 2: SUBJECT-WISE MARKS TABLE */
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-warm-900 dark:text-slate-100 uppercase tracking-wider">
+                      Subject Marks Breakdown
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleAddSubjectRow}
+                      className="text-xs font-bold text-brand-500 hover:text-brand-600 flex items-center space-x-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Subject Paper</span>
+                    </button>
+                  </div>
+
+                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-warm-100/60 dark:bg-darkbg-base text-warm-900 dark:text-slate-300 font-bold">
+                        <tr>
+                          <th className="p-3 w-28">Paper Code</th>
+                          <th className="p-3">Paper / Subject Name</th>
+                          <th className="p-3 w-20 text-center">Max Marks</th>
+                          <th className="p-3 w-20 text-center">Min Pass</th>
+                          <th className="p-3 w-24 text-center">Theory Obt</th>
+                          <th className="p-3 w-20 text-center">Pass/Fail</th>
+                          <th className="p-3 w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-warm-200/40 dark:divide-darkbg-border">
+                        {formData.subjects.map((sub, idx) => {
+                          const total = (Number(sub.theoryMarks) || 0) + (Number(sub.practicalMarks) || 0);
+                          const isPass = total >= (Number(sub.minMarks) || 36);
+
+                          return (
+                            <tr key={idx} className="bg-white dark:bg-darkbg-surface">
+                              <td className="p-2.5">
+                                <input
+                                  type="text"
+                                  value={sub.code}
+                                  onChange={(e) => {
+                                    const updated = [...formData.subjects];
+                                    updated[idx].code = e.target.value;
+                                    setFormData({ ...formData, subjects: updated });
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono text-xs"
+                                />
+                              </td>
+                              <td className="p-2.5">
+                                <input
+                                  type="text"
+                                  value={sub.name}
+                                  onChange={(e) => {
+                                    const updated = [...formData.subjects];
+                                    updated[idx].name = e.target.value;
+                                    setFormData({ ...formData, subjects: updated });
+                                  }}
+                                  className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-xs"
+                                />
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={sub.maxMarks}
+                                  onChange={(e) => handleSubjectMarkChange(idx, 'maxMarks', e.target.value)}
+                                  className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
+                                />
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={sub.minMarks}
+                                  onChange={(e) => handleSubjectMarkChange(idx, 'minMarks', e.target.value)}
+                                  className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
+                                />
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <input
+                                  type="number"
+                                  value={sub.theoryMarks}
+                                  onChange={(e) => handleSubjectMarkChange(idx, 'theoryMarks', e.target.value)}
+                                  className="w-20 px-2 py-1 rounded-lg border border-brand-500 font-bold text-brand-600 dark:text-brand-400 text-center font-mono text-xs"
+                                />
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                }`}>
+                                  {isPass ? 'Pass' : 'Fail'}
+                                </span>
+                              </td>
+                              <td className="p-2.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSubjectRow(idx)}
+                                  className="text-slate-400 hover:text-rose-500 p-1"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Modal Action Buttons */}
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-warm-200/50 dark:border-darkbg-border">
@@ -795,6 +1028,188 @@ const Results = () => {
                   Save & Publish Marksheet
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: CLASS-WISE BATCH MARKS ENTRY ─── */}
+      {showBatchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white dark:bg-darkbg-surface w-full max-w-4xl rounded-2xl shadow-2xl border border-warm-200 dark:border-darkbg-border overflow-hidden my-6">
+            <div className="p-6 bg-gradient-to-r from-warm-100 to-warm-50 dark:from-darkbg-base dark:to-darkbg-surface border-b border-warm-200/50 dark:border-darkbg-border flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-brand-500 text-white rounded-xl">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-warm-900 dark:text-slate-100">Class-Wise Batch Marks Entry</h3>
+                  <p className="text-xs text-warm-855 dark:text-slate-400">Select session and semester, load enrolled class list, and enter marks in bulk.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowBatchModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-warm-900 dark:hover:text-slate-100 hover:bg-white/50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBatchMarks} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+              
+              {/* Filter Row: Session, Course, Year/Sem */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-warm-50 dark:bg-darkbg-base p-4 rounded-xl border border-warm-200 dark:border-darkbg-border">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Session</label>
+                  <select
+                    value={batchSession}
+                    onChange={(e) => setBatchSession(e.target.value)}
+                    className="w-full text-xs px-2.5 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100 font-bold"
+                  >
+                    {sessions.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Course</label>
+                  <select
+                    value={batchCourse}
+                    onChange={(e) => setBatchCourse(e.target.value)}
+                    className="w-full text-xs px-2.5 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100 font-bold"
+                  >
+                    <option value="LLB">Bachelor of Laws (LL.B)</option>
+                    <option value="BALLB">B.A. LL.B (5 Year)</option>
+                    <option value="BA-LLB">BA-LLB</option>
+                    <option value="BCA">BCA</option>
+                    <option value="BBA">BBA</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Year / Semester</label>
+                  <select
+                    value={batchYear}
+                    onChange={(e) => setBatchYear(e.target.value)}
+                    className="w-full text-xs px-2.5 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100"
+                  >
+                    <option value="1st Year">1st Year / 1st Sem</option>
+                    <option value="2nd Year">2nd Year / 3rd Sem</option>
+                    <option value="3rd Year">3rd Year / 5th Sem</option>
+                    <option value="Final Year">Final Year</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={handleLoadBatchStudents}
+                    disabled={batchLoading}
+                    className="w-full py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 shadow-sm"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${batchLoading ? 'animate-spin' : ''}`} />
+                    <span>Load Class Roster</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Class Students Table */}
+              {batchStudents.length > 0 ? (
+                <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-warm-100/60 dark:bg-darkbg-base text-warm-900 dark:text-slate-300 font-bold">
+                      <tr>
+                        <th className="p-3 w-16">#</th>
+                        <th className="p-3 w-28">Roll No</th>
+                        <th className="p-3">Student Name</th>
+                        <th className="p-3 w-24 text-center">Max Marks</th>
+                        <th className="p-3 w-28 text-center">Obtained Marks</th>
+                        <th className="p-3 w-20 text-center">Percentage</th>
+                        <th className="p-3 w-28 text-center">Division</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-warm-200/40 dark:divide-darkbg-border">
+                      {batchStudents.map((st, idx) => {
+                        const pct = st.totalMaxMarks > 0 ? ((st.totalObtainedMarks / st.totalMaxMarks) * 100).toFixed(1) : 0;
+                        const isPass = Number(pct) >= 36;
+
+                        return (
+                          <tr key={st.studentId || idx} className="bg-white dark:bg-darkbg-surface hover:bg-warm-50/50">
+                            <td className="p-3 font-mono text-slate-400">{idx + 1}</td>
+                            <td className="p-2.5">
+                              <input
+                                type="text"
+                                required
+                                value={st.rollNo}
+                                onChange={(e) => handleBatchMarkChange(idx, 'rollNo', e.target.value)}
+                                className="w-full px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono font-bold text-xs"
+                              />
+                            </td>
+                            <td className="p-3 font-semibold text-warm-900 dark:text-slate-100">
+                              <div>{st.studentName}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{st.registrationId}</div>
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <input
+                                type="number"
+                                required
+                                value={st.totalMaxMarks}
+                                onChange={(e) => handleBatchMarkChange(idx, 'totalMaxMarks', e.target.value)}
+                                className="w-20 px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono text-center text-xs"
+                              />
+                            </td>
+                            <td className="p-2.5 text-center">
+                              <input
+                                type="number"
+                                required
+                                value={st.totalObtainedMarks}
+                                onChange={(e) => handleBatchMarkChange(idx, 'totalObtainedMarks', e.target.value)}
+                                className="w-24 px-2 py-1.5 rounded-lg border border-brand-500 font-bold text-brand-600 dark:text-brand-400 font-mono text-center text-xs"
+                              />
+                            </td>
+                            <td className="p-3 text-center font-bold">
+                              <span className={isPass ? 'text-emerald-600' : 'text-rose-600'}>
+                                {pct}%
+                              </span>
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                isPass ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {st.division}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-12 text-center text-xs text-slate-400 italic bg-warm-50 dark:bg-darkbg-base rounded-xl border border-dashed border-warm-200">
+                  Select Session, Course, and Year above, then click "Load Class Roster" to display enrolled students for quick batch mark entry.
+                </div>
+              )}
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-warm-200/50 dark:border-darkbg-border">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchModal(false)}
+                  className="px-5 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border text-xs font-bold text-warm-855 hover:bg-warm-100/50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={batchStudents.length === 0}
+                  className="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-xs font-bold shadow-md shadow-brand-500/20 active:scale-95"
+                >
+                  Save All Class Results ({batchStudents.length})
+                </button>
+              </div>
+
             </form>
           </div>
         </div>

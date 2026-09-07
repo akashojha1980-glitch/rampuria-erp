@@ -19,6 +19,7 @@ const Promotion = () => {
   const [targetSession, setTargetSession] = useState('2026-27');
   const [targetYear, setTargetYear] = useState('2nd Year');
   const [targetCourse, setTargetCourse] = useState('');
+  const [enforceFeeClearance, setEnforceFeeClearance] = useState(true);
   const [promoting, setPromoting] = useState(false);
 
   // Toast notification
@@ -74,15 +75,32 @@ const Promotion = () => {
 
   // Handle Select All Checkbox
   const handleSelectAll = () => {
-    if (selectedStudentIds.length === students.length) {
+    const eligibleStudents = students.filter(s => {
+      if (!enforceFeeClearance) return true;
+      const due = s.feeSummary?.totalDue || 0;
+      return due === 0;
+    });
+
+    if (selectedStudentIds.length === eligibleStudents.length && eligibleStudents.length > 0) {
       setSelectedStudentIds([]);
     } else {
-      setSelectedStudentIds(students.map(s => s._id || s.id));
+      setSelectedStudentIds(eligibleStudents.map(s => s._id || s.id));
     }
   };
 
   // Toggle single student selection
-  const toggleSelectStudent = (id) => {
+  const toggleSelectStudent = (st) => {
+    const id = st._id || st.id;
+    const due = st.feeSummary?.totalDue || 0;
+
+    if (enforceFeeClearance && due > 0) {
+      setToast({ 
+        type: 'warning', 
+        message: `Cannot select ${st.fullName} — pending fee balance of ₹${due.toLocaleString()}. Please clear dues first.` 
+      });
+      return;
+    }
+
     if (selectedStudentIds.includes(id)) {
       setSelectedStudentIds(selectedStudentIds.filter(item => item !== id));
     } else {
@@ -93,7 +111,7 @@ const Promotion = () => {
   // 1-Click Bulk Promotion Action
   const handlePromote = async () => {
     if (selectedStudentIds.length === 0) {
-      setToast({ type: 'warning', message: 'Please select at least one student to promote.' });
+      setToast({ type: 'warning', message: 'Please select at least one eligible student to promote.' });
       return;
     }
 
@@ -115,24 +133,20 @@ const Promotion = () => {
           studentIds: selectedStudentIds,
           targetSession,
           targetYear,
-          targetCourse: targetCourse || undefined
+          targetCourse: targetCourse || undefined,
+          enforceFeeClearance
         })
       });
 
       const data = await res.json();
-
       if (res.ok) {
-        setToast({ 
-          type: 'success', 
-          message: data.message || `Successfully promoted ${selectedStudentIds.length} students to Session ${targetSession}!` 
-        });
-        // Refresh list
+        setToast({ type: 'success', message: data.message });
         fetchStudents();
       } else {
-        setToast({ type: 'error', message: data.message || 'Promotion failed' });
+        setToast({ type: 'error', message: data.message || 'Error executing student promotion' });
       }
     } catch (err) {
-      setToast({ type: 'error', message: 'Error performing student promotion' });
+      setToast({ type: 'error', message: 'Server communication error during promotion' });
     } finally {
       setPromoting(false);
     }
@@ -267,9 +281,32 @@ const Promotion = () => {
             </div>
           </div>
 
+          {/* Fee Validation Rule Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/30">
+            <div className="flex items-center space-x-2.5">
+              <ShieldCheck className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div>
+                <span className="text-xs font-bold text-warm-900 dark:text-slate-100 block">Enforce Fee Clearance Validation</span>
+                <span className="text-[10px] text-warm-855 dark:text-slate-400 block">Restrict promotion for students with unpaid fee balances.</span>
+              </div>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enforceFeeClearance}
+                onChange={(e) => {
+                  setEnforceFeeClearance(e.target.checked);
+                  setSelectedStudentIds([]);
+                }}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
           <div className="flex items-center justify-between pt-2">
             <span className="text-xs text-warm-855 dark:text-slate-400">
-              Selected <span className="font-bold text-brand-500">{selectedStudentIds.length}</span> student(s) will be updated to Session <span className="font-bold">{targetSession}</span>.
+              Selected <span className="font-bold text-brand-500">{selectedStudentIds.length}</span> student(s) will be promoted to Session <span className="font-bold">{targetSession}</span>.
             </span>
 
             <button
@@ -310,12 +347,12 @@ const Promotion = () => {
               ) : (
                 <Square className="w-4 h-4 text-slate-400" />
               )}
-              <span>Select All ({students.length})</span>
+              <span>Select All Eligible</span>
             </button>
           </div>
 
           <span className="text-xs text-warm-855 dark:text-slate-400">
-            Current Session: <span className="font-bold">{activeSession}</span>
+            Source Session: <span className="font-bold text-brand-500">{activeSession}</span>
           </span>
         </div>
 
@@ -338,44 +375,64 @@ const Promotion = () => {
                   <th className="p-4">Student Name</th>
                   <th className="p-4">Course</th>
                   <th className="p-4">Current Year</th>
-                  <th className="p-4">Session</th>
-                  <th className="p-4">Status</th>
+                  <th className="p-4">Fee Clearance</th>
+                  <th className="p-4">Verification</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-200/40 dark:divide-darkbg-border">
                 {students.map((st, idx) => {
                   const id = st._id || st.id;
                   const isSelected = selectedStudentIds.includes(id);
+                  const totalDue = st.feeSummary?.totalDue || 0;
+                  const hasFeeDue = totalDue > 0;
+                  const isBlocked = enforceFeeClearance && hasFeeDue;
 
                   return (
                     <tr 
                       key={id}
-                      onClick={() => toggleSelectStudent(id)}
+                      onClick={() => toggleSelectStudent(st)}
                       className={`cursor-pointer transition-colors ${
-                        isSelected 
-                          ? 'bg-brand-500/10 dark:bg-brand-500/10' 
-                          : 'hover:bg-warm-100/40 dark:hover:bg-darkbg-surface/60'
+                        isBlocked
+                          ? 'opacity-60 bg-slate-50 dark:bg-darkbg-base/40 cursor-not-allowed'
+                          : isSelected 
+                            ? 'bg-brand-500/10 dark:bg-brand-500/10' 
+                            : 'hover:bg-warm-100/40 dark:hover:bg-darkbg-surface/60'
                       }`}
                     >
                       <td className="p-4">
                         {isSelected ? (
                           <CheckSquare className="w-4 h-4 text-brand-500" />
+                        ) : isBlocked ? (
+                          <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />
                         ) : (
                           <Square className="w-4 h-4 text-slate-400" />
                         )}
                       </td>
                       <td className="p-4 font-mono font-bold text-brand-500">{st.registrationId}</td>
-                      <td className="p-4 font-semibold text-warm-900 dark:text-slate-100">{st.fullName}</td>
+                      <td className="p-4 font-semibold text-warm-900 dark:text-slate-100">
+                        <div>{st.fullName}</div>
+                        {isBlocked && (
+                          <div className="text-[10px] text-rose-500 font-bold flex items-center space-x-1">
+                            <span>⚠️ Fee Due: ₹{totalDue.toLocaleString()} (Promotion Blocked)</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="p-4">{st.courseApplied}</td>
                       <td className="p-4">{st.currentYear || '1st Year'}</td>
                       <td className="p-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          {st.academicSession || activeSession}
-                        </span>
+                        {hasFeeDue ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-400">
+                            ⚠️ ₹{totalDue.toLocaleString()} Due
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400">
+                            ✓ Cleared (₹0)
+                          </span>
+                        )}
                       </td>
                       <td className="p-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          st.verificationStatus === 'Approved'
+                          st.verificationStatus === 'Approved' || st.verificationStatus === 'Verified'
                             ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400'
                             : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-400'
                         }`}>

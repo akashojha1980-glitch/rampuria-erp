@@ -150,7 +150,54 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
-// @desc    Enter New Marksheet / Result
+// @desc    Get Students for a Class / Semester Batch Marks Entry
+// @route   GET /api/results/class-students
+// @access  Private
+router.get('/class-students', protect, async (req, res) => {
+  try {
+    const { session, course, year } = req.query;
+    const where = {};
+    if (session && session !== 'all' && session !== 'All Sessions') {
+      where.academicSession = session;
+    }
+    if (course && course !== 'all') {
+      where.courseApplied = course;
+    }
+    if (year && year !== 'all') {
+      where.currentYear = year;
+    }
+
+    const students = await Student.findAll({
+      where,
+      order: [['fullName', 'ASC']]
+    });
+
+    // Check existing results for these students
+    const studentListWithResults = await Promise.all(students.map(async (st) => {
+      const studentObj = mapId(st);
+      const existingResult = await Result.findOne({
+        where: {
+          [Op.or]: [
+            { studentId: st.id },
+            { registrationId: st.registrationId }
+          ],
+          academicSession: session && session !== 'All Sessions' ? session : (st.academicSession || '2025-26'),
+          year: year && year !== 'all' ? year : (st.currentYear || '1st Year')
+        }
+      });
+
+      studentObj.existingResult = existingResult ? mapId(existingResult) : null;
+      return studentObj;
+    }));
+
+    res.json(studentListWithResults);
+  } catch (error) {
+    console.error('[Results Class-Students] Error:', error.message);
+    res.status(500).json({ message: error.message || 'Error loading class student roster' });
+  }
+});
+
+// @desc    Enter New Marksheet / Result (Supports Subject-Wise or Quick Total Marks)
 // @route   POST /api/results
 // @access  Private
 router.post('/', protect, async (req, res) => {
@@ -161,83 +208,222 @@ router.post('/', protect, async (req, res) => {
       return res.status(400).json({ message: 'Student Name, Roll No and Course are required' });
     }
 
-    // Process Subjects & Calculate Totals
-    const subjects = Array.isArray(data.subjects) ? data.subjects : [];
-    let totalMax = 0;
-    let totalObtained = 0;
-    let failedSubjectsCount = 0;
+    let totalMax = Number(data.totalMaxMarks) || 500;
+    let totalObtained = Number(data.totalObtainedMarks) || 0;
+    let percentage = 0;
+    let resultStatus = data.resultStatus || 'Pass';
+    let division = data.division || 'Pass Class';
+    let processedSubjects = [];
 
-    const processedSubjects = subjects.map(s => {
-      const max = Number(s.maxMarks) || 100;
-      const min = Number(s.minMarks) || 36;
-      const theory = Number(s.theoryMarks) || 0;
-      const practical = Number(s.practicalMarks) || 0;
-      const total = theory + practical;
-      const passed = total >= min;
-      if (!passed) failedSubjectsCount++;
+    // Mode A: Subject-wise Marks Entry
+    if (Array.isArray(data.subjects) && data.subjects.length > 0 && data.entryMode !== 'quick') {
+      totalMax = 0;
+      totalObtained = 0;
+      let failedSubjectsCount = 0;
 
-      totalMax += max;
-      totalObtained += total;
+      processedSubjects = data.subjects.map(s => {
+        const max = Number(s.maxMarks) || 100;
+        const min = Number(s.minMarks) || 36;
+        const theory = Number(s.theoryMarks) || 0;
+        const practical = Number(s.practicalMarks) || 0;
+        const total = theory + practical;
+        const passed = total >= min;
+        if (!passed) failedSubjectsCount++;
 
-      return {
-        code: s.code || '',
-        name: s.name || '',
-        maxMarks: max,
-        minMarks: min,
-        theoryMarks: theory,
-        practicalMarks: practical,
-        totalMarks: total,
-        status: passed ? 'Pass' : 'Fail'
-      };
-    });
+        totalMax += max;
+        totalObtained += total;
 
-    if (totalMax === 0) totalMax = data.totalMaxMarks || 500;
-    const percentage = totalMax > 0 ? Number(((totalObtained / totalMax) * 100).toFixed(2)) : 0;
+        return {
+          code: s.code || '',
+          name: s.name || '',
+          maxMarks: max,
+          minMarks: min,
+          theoryMarks: theory,
+          practicalMarks: practical,
+          totalMarks: total,
+          status: passed ? 'Pass' : 'Fail'
+        };
+      });
 
-    let resultStatus = 'Pass';
-    let division = 'Pass Class';
+      if (totalMax === 0) totalMax = Number(data.totalMaxMarks) || 500;
+      percentage = totalMax > 0 ? Number(((totalObtained / totalMax) * 100).toFixed(2)) : 0;
 
-    if (failedSubjectsCount > 2) {
-      resultStatus = 'Fail';
-      division = 'Fail';
-    } else if (failedSubjectsCount > 0) {
-      resultStatus = 'Supplementary';
-      division = 'Supplementary';
+      if (failedSubjectsCount > 2) {
+        resultStatus = 'Fail';
+        division = 'Fail';
+      } else if (failedSubjectsCount > 0) {
+        resultStatus = 'Supplementary';
+        division = 'Supplementary';
+      } else {
+        if (percentage >= 60) division = 'First Division (Honours)';
+        else if (percentage >= 48) division = 'Second Division';
+        else division = 'Pass Class';
+      }
     } else {
-      if (percentage >= 60) division = 'First Division (Honours)';
-      else if (percentage >= 48) division = 'Second Division';
-      else division = 'Pass Class';
+      // Mode B: Quick Total Marks Mode
+      totalMax = Number(data.totalMaxMarks) || 500;
+      totalObtained = Number(data.totalObtainedMarks) || 0;
+      percentage = totalMax > 0 ? Number(((totalObtained / totalMax) * 100).toFixed(2)) : 0;
+      
+      if (percentage < 36) {
+        resultStatus = 'Fail';
+        division = 'Fail';
+      } else if (percentage >= 60) {
+        resultStatus = 'Pass';
+        division = 'First Division';
+      } else if (percentage >= 48) {
+        resultStatus = 'Pass';
+        division = 'Second Division';
+      } else {
+        resultStatus = 'Pass';
+        division = 'Pass Class';
+      }
     }
 
-    const newResult = await Result.create({
-      studentId: data.studentId || null,
-      registrationId: data.registrationId || `REG-${Date.now().toString().slice(-5)}`,
-      rollNo: data.rollNo,
-      studentName: data.studentName,
-      fatherName: data.fatherName || '',
-      course: data.course,
-      academicSession: data.academicSession || '2025-26',
-      year: data.year || '1st Year',
-      semester: data.semester || 'Annual',
-      examType: data.examType || 'Main Annual Exam',
-      examMonthYear: data.examMonthYear || 'May 2026',
-      subjects: processedSubjects,
-      totalMaxMarks: totalMax,
-      totalObtainedMarks: totalObtained,
-      percentage,
-      resultStatus,
-      division,
-      remarks: data.remarks || '',
-      declaredDate: data.declaredDate || new Date().toISOString().split('T')[0]
+    // Check if result already exists for rollNo/regId & session to update or create
+    const existing = await Result.findOne({
+      where: {
+        rollNo: data.rollNo,
+        academicSession: data.academicSession || '2025-26',
+        year: data.year || '1st Year'
+      }
     });
 
+    let resultRecord;
+    if (existing) {
+      resultRecord = await existing.update({
+        studentName: data.studentName,
+        fatherName: data.fatherName || existing.fatherName,
+        course: data.course,
+        semester: data.semester || existing.semester,
+        examType: data.examType || existing.examType,
+        examMonthYear: data.examMonthYear || existing.examMonthYear,
+        subjects: processedSubjects,
+        totalMaxMarks: totalMax,
+        totalObtainedMarks: totalObtained,
+        percentage,
+        resultStatus,
+        division,
+        remarks: data.remarks || existing.remarks,
+        declaredDate: data.declaredDate || existing.declaredDate
+      });
+    } else {
+      resultRecord = await Result.create({
+        studentId: data.studentId || null,
+        registrationId: data.registrationId || `REG-${Date.now().toString().slice(-5)}`,
+        rollNo: data.rollNo,
+        studentName: data.studentName,
+        fatherName: data.fatherName || '',
+        course: data.course,
+        academicSession: data.academicSession || '2025-26',
+        year: data.year || '1st Year',
+        semester: data.semester || 'Annual',
+        examType: data.examType || 'Main Annual Exam',
+        examMonthYear: data.examMonthYear || 'May 2026',
+        subjects: processedSubjects,
+        totalMaxMarks: totalMax,
+        totalObtainedMarks: totalObtained,
+        percentage,
+        resultStatus,
+        division,
+        remarks: data.remarks || '',
+        declaredDate: data.declaredDate || new Date().toISOString().split('T')[0]
+      });
+    }
+
     res.status(201).json({
-      message: 'Marksheet entered successfully',
-      result: mapId(newResult)
+      message: 'Marksheet saved & calculated successfully',
+      result: mapId(resultRecord)
     });
   } catch (error) {
     console.error('[Result Create] Error:', error.message);
     res.status(500).json({ message: error.message || 'Error saving result' });
+  }
+});
+
+// @desc    Batch Save Class Marks (1-Click for entire semester/year)
+// @route   POST /api/results/batch-save
+// @access  Private
+router.post('/batch-save', protect, async (req, res) => {
+  try {
+    const { session, course, year, semester, examType, examMonthYear, records } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ message: 'No student marks records provided' });
+    }
+
+    let savedCount = 0;
+    for (const r of records) {
+      if (!r.studentName || !r.rollNo) continue;
+
+      const totalMax = Number(r.totalMaxMarks) || 500;
+      const totalObtained = Number(r.totalObtainedMarks) || 0;
+      const percentage = totalMax > 0 ? Number(((totalObtained / totalMax) * 100).toFixed(2)) : 0;
+      
+      let resultStatus = 'Pass';
+      let division = 'Pass Class';
+      if (percentage < 36) {
+        resultStatus = 'Fail';
+        division = 'Fail';
+      } else if (percentage >= 60) {
+        resultStatus = 'Pass';
+        division = 'First Division';
+      } else if (percentage >= 48) {
+        resultStatus = 'Pass';
+        division = 'Second Division';
+      }
+
+      const existing = await Result.findOne({
+        where: {
+          rollNo: r.rollNo,
+          academicSession: session || '2025-26',
+          year: year || '1st Year'
+        }
+      });
+
+      if (existing) {
+        await existing.update({
+          studentName: r.studentName,
+          fatherName: r.fatherName || existing.fatherName,
+          course: course || existing.course,
+          semester: semester || 'Annual',
+          examType: examType || 'Main Annual Exam',
+          examMonthYear: examMonthYear || 'May 2026',
+          totalMaxMarks: totalMax,
+          totalObtainedMarks: totalObtained,
+          percentage,
+          resultStatus,
+          division
+        });
+      } else {
+        await Result.create({
+          studentId: r.studentId || null,
+          registrationId: r.registrationId || `REG-${Date.now().toString().slice(-5)}`,
+          rollNo: r.rollNo,
+          studentName: r.studentName,
+          fatherName: r.fatherName || '',
+          course: course || 'LLB',
+          academicSession: session || '2025-26',
+          year: year || '1st Year',
+          semester: semester || 'Annual',
+          examType: examType || 'Main Annual Exam',
+          examMonthYear: examMonthYear || 'May 2026',
+          subjects: [],
+          totalMaxMarks: totalMax,
+          totalObtainedMarks: totalObtained,
+          percentage,
+          resultStatus,
+          division,
+          declaredDate: new Date().toISOString().split('T')[0]
+        });
+      }
+      savedCount++;
+    }
+
+    res.json({ message: `Successfully saved examination marks for ${savedCount} students!`, count: savedCount });
+  } catch (error) {
+    console.error('[Batch Results Save] Error:', error.message);
+    res.status(500).json({ message: error.message || 'Error processing batch marks' });
   }
 });
 

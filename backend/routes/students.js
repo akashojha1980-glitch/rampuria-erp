@@ -231,8 +231,28 @@ router.get('/', protect, async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    const enrichedStudents = await Promise.all(students.map(async (st) => {
+      const obj = mapId(st);
+      try {
+        const feePayments = await FeePayment.findAll({
+          where: { studentId: st.id }
+        });
+        const totalPaid = feePayments.reduce((acc, f) => acc + (Number(f.amountPaid) || 0), 0);
+        const totalDue = feePayments.reduce((acc, f) => acc + (Number(f.amountDue) || 0), 0);
+        obj.feeSummary = {
+          totalPaid,
+          totalDue,
+          hasPaidRecord: feePayments.length > 0,
+          isCleared: totalDue === 0 && (totalPaid > 0 || feePayments.length > 0)
+        };
+      } catch (err) {
+        obj.feeSummary = { totalPaid: 0, totalDue: 0, hasPaidRecord: false, isCleared: true };
+      }
+      return obj;
+    }));
+
     res.json({
-      students: students.map(mapId),
+      students: enrichedStudents,
       page: Number(page),
       pages: Math.ceil(count / Number(limit)),
       total: count

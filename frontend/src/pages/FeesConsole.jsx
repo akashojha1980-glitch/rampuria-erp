@@ -31,8 +31,11 @@ const getCourseBadge = (course) => {
   );
 };
 
+import { useSession } from '../context/SessionContext';
+
 const FeesConsole = () => {
   const navigate = useNavigate();
+  const { activeSession, sessions } = useSession();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
@@ -41,7 +44,15 @@ const FeesConsole = () => {
   const [search, setSearch] = useState('');
   const [course, setCourse] = useState('');
   const [installment, setInstallment] = useState('');
+  const [sessionFilter, setSessionFilter] = useState(activeSession || '2025-26');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'paid' | 'due'
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    if (activeSession) {
+      setSessionFilter(activeSession);
+    }
+  }, [activeSession]);
 
   const showToastMsg = (message, type = 'success') => {
     setToast({ message, type });
@@ -51,7 +62,16 @@ const FeesConsole = () => {
     setLoading(true);
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`/api/fees/dashboard?search=${search}&course=${course}&installment=${installment}&page=${page}&limit=20`, {
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (course && course !== 'all') params.append('course', course);
+      if (installment && installment !== 'all') params.append('installment', installment);
+      if (sessionFilter && sessionFilter !== 'All Sessions') params.append('session', sessionFilter);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      params.append('page', page);
+      params.append('limit', '25');
+
+      const res = await fetch(`/api/fees/dashboard?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const resData = await res.json();
@@ -69,7 +89,7 @@ const FeesConsole = () => {
 
   useEffect(() => {
     fetchFeesData();
-  }, [course, installment, page]);
+  }, [course, installment, sessionFilter, statusFilter, page]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -86,7 +106,7 @@ const FeesConsole = () => {
     return <Loading size="lg" text="Loading college fees console & compiling cashflow statistics..." />;
   }
 
-  const stats = data?.stats || { totalCollected: 0, totalOutstanding: 0, totalTransactions: 0, uniquePaidStudents: 0 };
+  const stats = data?.stats || { totalCollected: 0, totalOutstanding: 0, totalTransactions: 0, fullyPaidCount: 0, pendingDueCount: 0 };
   const transactions = data?.transactions || [];
 
   return (
@@ -96,13 +116,52 @@ const FeesConsole = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 no-print">
         <div>
-          <h1 className="text-lg font-black text-warm-900 dark:text-white uppercase tracking-wider">Fees Central Console</h1>
-          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">B.J.S. Rampuria Jain Law College ERP</p>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-lg font-black text-warm-900 dark:text-white uppercase tracking-wider">Fees Central Console</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-brand-500 text-white">
+              Session {sessionFilter}
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">B.J.S. Rampuria Jain Law College ERP • Fee Collection & Due Recovery</p>
+        </div>
+
+        {/* Status Filter Tab Pills */}
+        <div className="flex items-center bg-warm-100 dark:bg-darkbg-surface p-1 rounded-xl border border-warm-200 dark:border-darkbg-border">
+          <button
+            onClick={() => { setStatusFilter('all'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              statusFilter === 'all' 
+                ? 'bg-white dark:bg-darkbg-base text-warm-900 dark:text-white shadow-sm' 
+                : 'text-warm-800/60 dark:text-slate-400 hover:text-warm-900'
+            }`}
+          >
+            All ({stats.totalTransactions})
+          </button>
+          <button
+            onClick={() => { setStatusFilter('paid'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              statusFilter === 'paid' 
+                ? 'bg-emerald-500 text-white shadow-sm' 
+                : 'text-warm-800/60 dark:text-slate-400 hover:text-emerald-600'
+            }`}
+          >
+            ✓ Fully Paid ({stats.fullyPaidCount || 0})
+          </button>
+          <button
+            onClick={() => { setStatusFilter('due'); setPage(1); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              statusFilter === 'due' 
+                ? 'bg-rose-500 text-white shadow-sm' 
+                : 'text-warm-800/60 dark:text-slate-400 hover:text-rose-600'
+            }`}
+          >
+            ⚠️ Pending Due ({stats.pendingDueCount || 0})
+          </button>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 no-print">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 no-print">
         
         {/* Total Collected */}
         <motion.div 
@@ -122,7 +181,7 @@ const FeesConsole = () => {
             </div>
           </div>
           <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
-            Total payment received from all installments
+            Total cash received in session {sessionFilter}
           </div>
         </motion.div>
 
@@ -136,7 +195,7 @@ const FeesConsole = () => {
         >
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Total Outstanding</span>
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Total Outstanding Due</span>
               <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 leading-none">₹{stats.totalOutstanding.toLocaleString()}/-</h3>
             </div>
             <div className="p-3 bg-rose-500/10 dark:bg-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400">
@@ -144,51 +203,51 @@ const FeesConsole = () => {
             </div>
           </div>
           <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
-            Pending dues to be collected by students
+            Pending dues to be recovered from students
           </div>
         </motion.div>
 
-        {/* Paid Students Count */}
+        {/* Fully Paid Count */}
         <motion.div 
           variants={cardVariants}
           initial="hidden"
           animate="visible"
           transition={{ duration: 0.3, delay: 0.1 }}
-          className="classy-card relative overflow-hidden group border-l-4 border-l-brand-500"
+          className="classy-card relative overflow-hidden group border-l-4 border-l-emerald-500"
         >
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Paying Students</span>
-              <h3 className="text-2xl font-black text-brand-600 dark:text-brand-300 leading-none">{stats.uniquePaidStudents}</h3>
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Paid Vouchers (Cleared)</span>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 leading-none">{stats.fullyPaidCount || 0}</h3>
             </div>
-            <div className="p-3 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl text-brand-600 dark:text-brand-400">
+            <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
-            Count of students with at least 1 payment
+            Transactions with zero outstanding balance
           </div>
         </motion.div>
 
-        {/* Total Transactions */}
+        {/* Pending Due Count */}
         <motion.div 
           variants={cardVariants}
           initial="hidden"
           animate="visible"
           transition={{ duration: 0.3, delay: 0.15 }}
-          className="classy-card relative overflow-hidden group border-l-4 border-l-indigo-500"
+          className="classy-card relative overflow-hidden group border-l-4 border-l-amber-500"
         >
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Vouchers Issued</span>
-              <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 leading-none">{stats.totalTransactions}</h3>
+              <span className="text-[10px] font-bold text-warm-900/60 dark:text-slate-400 uppercase tracking-widest block">Pending Due Vouchers</span>
+              <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 leading-none">{stats.pendingDueCount || 0}</h3>
             </div>
-            <div className="p-3 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-2xl text-indigo-600 dark:text-indigo-400">
+            <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400">
               <Calendar className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4 text-[10px] font-semibold text-warm-800/40 dark:text-slate-500">
-            Chronological receipt installments verified
+            Transactions requiring follow-up collection
           </div>
         </motion.div>
 
@@ -203,7 +262,7 @@ const FeesConsole = () => {
             <div className="relative w-full">
               <input
                 type="text"
-                placeholder="Search by student name or registration ID..."
+                placeholder="Search by student name, reg ID or receipt no..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold text-warm-850 dark:text-slate-200 placeholder-warm-800/35 outline-none focus:border-brand-500 transition-colors"
@@ -215,7 +274,21 @@ const FeesConsole = () => {
             </button>
           </form>
 
-          <div className="flex flex-wrap items-center gap-3.5 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Session Selector */}
+            <div className="flex items-center space-x-2">
+              <select
+                value={sessionFilter}
+                onChange={(e) => { setSessionFilter(e.target.value); setPage(1); }}
+                className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-bold outline-none text-brand-600 dark:text-brand-400 cursor-pointer"
+              >
+                {sessions.map(s => (
+                  <option key={s} value={s}>Session: {s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Course Filter */}
             <div className="flex items-center space-x-2">
               <Filter className="w-3.5 h-3.5 text-warm-800/40 dark:text-slate-500" />
               <select
@@ -227,10 +300,13 @@ const FeesConsole = () => {
                 <option value="LL.B.">LL.B.</option>
                 <option value="LL.M.">LL.M.</option>
                 <option value="B.A. LL.B.">B.A. LL.B.</option>
-                <option value="P.G. Diploma in Law">P.G. Diploma</option>
+                <option value="BA-LLB">BA-LLB</option>
+                <option value="BCA">BCA</option>
+                <option value="BBA">BBA</option>
               </select>
             </div>
 
+            {/* Installment Filter */}
             <div className="flex items-center space-x-2">
               <select
                 value={installment}
@@ -262,10 +338,11 @@ const FeesConsole = () => {
                   <th className="px-6 py-4">Receipt No</th>
                   <th className="px-6 py-4">Student Name</th>
                   <th className="px-6 py-4">Course</th>
-                  <th className="px-6 py-4">Term/Installment</th>
-                  <th className="px-6 py-4">Amount Paid</th>
-                  <th className="px-6 py-4">Method</th>
-                  <th className="px-6 py-4">Transaction / Ref No</th>
+                  <th className="px-6 py-4">Term / Installment</th>
+                  <th className="px-6 py-4 text-emerald-600">Amount Paid</th>
+                  <th className="px-6 py-4 text-rose-600">Balance Due</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Method & Ref</th>
                   <th className="px-6 py-4">Date</th>
                   <th className="px-6 py-4 text-right">Profile</th>
                 </tr>
@@ -273,46 +350,64 @@ const FeesConsole = () => {
               <tbody className="divide-y divide-warm-100/50 dark:divide-darkbg-border text-xs font-semibold text-slate-700 dark:text-slate-200">
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="text-center py-12 text-slate-400 italic font-medium">
-                      No matching student installment receipts found.
+                    <td colSpan="10" className="text-center py-12 text-slate-400 italic font-medium">
+                      No matching student installment receipts found for selected filters.
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((txn) => (
-                    <tr key={txn._id} className="hover:bg-warm-50/30 dark:hover:bg-darkbg-base/20 transition-colors">
-                      <td className="px-6 py-4">
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">{txn.receiptNo}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900 dark:text-slate-200">{txn.student?.fullName || 'N/A'}</div>
-                        <div className="text-[10px] text-slate-400 font-bold">{txn.student?.registrationId}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {getCourseBadge(txn.student?.courseApplied)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>{txn.academicYear}</div>
-                        <div className="text-[10px] text-slate-400">{txn.installmentName}</div>
-                      </td>
-                      <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400">
-                        ₹{txn.amountPaid.toLocaleString()}/-
-                      </td>
-                      <td className="px-6 py-4">{txn.paymentMode}</td>
-                      <td className="px-6 py-4 font-mono text-[10px] text-slate-500">
-                        {txn.transactionNo ? txn.transactionNo : <span className="text-slate-350 italic">—</span>}
-                      </td>
-                      <td className="px-6 py-4">{new Date(txn.paymentDate).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => navigate(`/profile/${txn.studentId}`)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-500/10 transition-colors"
-                          title="View Student Dossier"
-                        >
-                          <Eye className="w-4.5 h-4.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  transactions.map((txn) => {
+                    const isFullyPaid = !txn.amountDue || txn.amountDue === 0;
+
+                    return (
+                      <tr key={txn._id} className="hover:bg-warm-50/30 dark:hover:bg-darkbg-base/20 transition-colors">
+                        <td className="px-6 py-4">
+                          <span className="font-mono font-bold text-slate-900 dark:text-white">{txn.receiptNo}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-900 dark:text-slate-200">{txn.student?.fullName || 'N/A'}</div>
+                          <div className="text-[10px] text-slate-400 font-bold">{txn.student?.registrationId}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {getCourseBadge(txn.student?.courseApplied)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>{txn.academicYear}</div>
+                          <div className="text-[10px] text-slate-400">{txn.installmentName}</div>
+                        </td>
+                        <td className="px-6 py-4 font-black text-emerald-600 dark:text-emerald-400">
+                          ₹{txn.amountPaid.toLocaleString()}/-
+                        </td>
+                        <td className="px-6 py-4 font-bold text-rose-600 dark:text-rose-400">
+                          {txn.amountDue > 0 ? `₹${txn.amountDue.toLocaleString()}/-` : '₹0/-'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            isFullyPaid 
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-400' 
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-400'
+                          }`}>
+                            {isFullyPaid ? '✓ Paid' : `⚠️ Due: ₹${txn.amountDue}`}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div>{txn.paymentMode}</div>
+                          <div className="font-mono text-[10px] text-slate-500">
+                            {txn.transactionNo || '—'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">{new Date(txn.paymentDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => navigate(`/profile/${txn.studentId}`)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-500/10 transition-colors"
+                            title="View Student Dossier"
+                          >
+                            <Eye className="w-4.5 h-4.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -82,7 +82,7 @@ router.get('/:id/activate', protect, async (req, res) => {
 // @access  Private
 router.post('/promote', protect, async (req, res) => {
   try {
-    const { studentIds, targetSession, targetCourse, targetYear } = req.body;
+    const { studentIds, targetSession, targetCourse, targetYear, enforceFeeClearance = true, allowPendingFees = false } = req.body;
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({ message: 'Please select at least one student to promote' });
@@ -90,6 +90,30 @@ router.post('/promote', protect, async (req, res) => {
 
     if (!targetSession) {
       return res.status(400).json({ message: 'Target Academic Session is required' });
+    }
+
+    // Fee Clearance Validation Rule
+    if (enforceFeeClearance && !allowPendingFees) {
+      const pendingDueStudents = [];
+
+      for (const stId of studentIds) {
+        const student = await Student.findByPk(stId);
+        if (!student) continue;
+
+        const payments = await FeePayment.findAll({ where: { studentId: stId } });
+        const totalDue = payments.reduce((acc, p) => acc + (Number(p.amountDue) || 0), 0);
+        
+        if (totalDue > 0) {
+          pendingDueStudents.push(`${student.fullName} (Pending Due: ₹${totalDue})`);
+        }
+      }
+
+      if (pendingDueStudents.length > 0) {
+        return res.status(400).json({
+          message: `Fees Validation Failed: ${pendingDueStudents.length} student(s) have pending fees dues. Promotion is restricted until fees are cleared.`,
+          pendingStudents: pendingDueStudents
+        });
+      }
     }
 
     const updateFields = {
