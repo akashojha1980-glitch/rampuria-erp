@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserPlus, FileCheck, Award, 
-  LogOut, Sun, Moon, GraduationCap, CreditCard, BookOpen, Users, BarChart3
+  LogOut, Sun, Moon, GraduationCap, CreditCard, BookOpen, Users, BarChart3, FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
