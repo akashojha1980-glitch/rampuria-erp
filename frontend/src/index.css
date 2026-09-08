@@ -20,15 +20,33 @@
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-transparent;
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-warm-200 dark:bg-darkbg-border rounded-full;
+    background: rgba(234, 219, 200, 0.8);
+    border-radius: 9999px;
   }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(140, 122, 107, 0.5);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(140, 122, 107, 0.25);
+  border-radius: 9999px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.4);
 }
 
 /* Elegant Classy CSS Utilities */
@@ -57,19 +75,47 @@
   @apply bg-white/80 dark:bg-darkbg-surface/85 backdrop-blur-md border border-warm-200/50 dark:border-darkbg-border/60 shadow-elegant dark:shadow-elegant-dark;
 }
 
-/* Print Styles */
+/* ─── OFFICIAL A4 PRINT STYLES ─── */
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm;
+  }
+  
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
+    font-size: 11px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  aside, header, .no-print, nav, button {
+  
+  aside, header, .no-print, nav, button, .cursor-glow, .animate-float-screen1, .animate-float-screen2, .animate-float-screen3 {
     display: none !important;
   }
-  .printable-marksheet {
+  
+  #root, #root > div, #root > div > div, main {
     padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+
+  .printable-marksheet, .printable-dossier {
+    padding: 0 !important;
+    margin: 0 !important;
     border: none !important;
     width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-page-break {
+    page-break-after: always;
   }
 }
 

@@ -4,8 +4,9 @@ import Toast from '../components/Toast';
 import { 
   Award, Search, Filter, Plus, Printer, Trash2, 
   CheckCircle2, XCircle, AlertCircle, RefreshCw, 
-  GraduationCap, BookOpen, FileText, Sparkles, X, ChevronRight
+  GraduationCap, BookOpen, FileText, Sparkles, X, ChevronRight, Download
 } from 'lucide-react';
+import SearchableStudentSelect from '../components/SearchableStudentSelect';
 
 const Results = () => {
   const { activeSession, sessions } = useSession();
@@ -731,23 +732,15 @@ const Results = () => {
                 </div>
               </div>
 
-              {/* Pre-fill from Registered Students */}
+              {/* Modern Searchable Registered Student Selector */}
               <div className="bg-brand-500/5 border border-brand-500/20 p-4 rounded-xl">
-                <label className="block text-xs font-bold text-brand-600 dark:text-brand-400 mb-1.5">
-                  Select Registered Student (Auto-fills Profile Details):
-                </label>
-                <select
+                <SearchableStudentSelect
+                  students={students}
                   value={formData.studentId}
-                  onChange={(e) => handleSelectStudentInForm(e.target.value)}
-                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-base text-warm-900 dark:text-slate-100 focus:outline-none"
-                >
-                  <option value="">-- Choose Student or Fill Manually Below --</option>
-                  {students.map(s => (
-                    <option key={s._id || s.id} value={s._id || s.id}>
-                      {s.fullName} ({s.registrationId}) - {s.courseApplied}
-                    </option>
-                  ))}
-                </select>
+                  onChange={handleSelectStudentInForm}
+                  label="Select Registered Student (Auto-fills Profile Details)"
+                  placeholder="-- Search Student by Name, Reg ID, Mobile or Course --"
+                />
               </div>
 
               {/* Student Metadata Form Grid */}
@@ -1217,38 +1210,56 @@ const Results = () => {
 
       {/* ─── MODAL: OFFICIAL PRINTABLE MARKSHEET / GRADE CARD ─── */}
       {selectedMarksheet && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-darkbg-surface w-full max-w-4xl rounded-2xl shadow-2xl border border-warm-200 dark:border-darkbg-border overflow-hidden my-6">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedMarksheet(null);
+          }}
+        >
+          <div className="bg-white dark:bg-darkbg-surface w-full max-w-4xl rounded-2xl shadow-2xl border border-warm-200 dark:border-darkbg-border overflow-hidden my-6 animate-in fade-in zoom-in-95 duration-200">
             
-            {/* Action Bar (Top) */}
-            <div className="p-4 bg-warm-100 dark:bg-darkbg-base border-b border-warm-200/50 dark:border-darkbg-border flex items-center justify-between no-print">
-              <div className="flex items-center space-x-2">
-                <Award className="w-4 h-4 text-brand-500" />
-                <span className="text-xs font-bold text-warm-900 dark:text-slate-100">Official College Marksheet Document</span>
+            {/* Top Action Bar (Always visible on screen, hidden on print) */}
+            <div className="p-4 bg-warm-100/80 dark:bg-darkbg-base border-b border-warm-200/60 dark:border-darkbg-border flex items-center justify-between no-print sticky top-0 z-10">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-brand-500 text-white rounded-xl shadow-sm">
+                  <Award className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold text-warm-900 dark:text-slate-100">
+                    Official College Marksheet & Grade Card
+                  </h3>
+                  <p className="text-[10px] text-warm-800/60 dark:text-slate-400">
+                    Roll No: {selectedMarksheet.rollNo} • {selectedMarksheet.studentName}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center space-x-3">
+              
+              <div className="flex items-center space-x-2">
                 <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white text-xs font-bold flex items-center space-x-2 shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center space-x-2 shadow-md hover:shadow-lg transition-all active:scale-95"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Print Official Grade Sheet</span>
+                  <span>Print Marksheet (A4)</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSelectedMarksheet(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-warm-900 dark:hover:text-slate-100"
+                  className="px-3.5 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-warm-855 dark:text-slate-200 hover:bg-warm-100/50 text-xs font-bold flex items-center space-x-1.5 transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
+                  <span>Close</span>
                 </button>
               </div>
             </div>
 
             {/* Printable Marksheet Container */}
-            <div className="p-8 bg-white text-slate-900 printable-marksheet font-serif space-y-6">
+            <div id="printable-marksheet-card" className="p-8 bg-white text-slate-900 printable-marksheet font-serif space-y-6">
               
               {/* College Header */}
               <div className="text-center border-b-2 border-brand-500 pb-4">
-                <div className="w-14 h-14 rounded-full bg-brand-500 text-white mx-auto flex items-center justify-center font-bold text-xl shadow-md mb-2">
+                <div className="w-14 h-14 rounded-full bg-brand-600 text-white mx-auto flex items-center justify-center font-bold text-xl shadow-md mb-2">
                   <GraduationCap className="w-8 h-8" />
                 </div>
                 <h1 className="text-xl md:text-2xl font-bold tracking-tight uppercase text-brand-600">
@@ -1315,12 +1326,12 @@ const Results = () => {
                         <td className="p-3 font-medium text-slate-800">{sub.name}</td>
                         <td className="p-3 text-center font-mono">{sub.maxMarks}</td>
                         <td className="p-3 text-center font-mono">{sub.minMarks}</td>
-                        <td className="p-3 text-center font-mono font-bold text-slate-900">{sub.totalMarks}</td>
+                        <td className="p-3 text-center font-mono font-bold text-slate-900">{sub.totalMarks || sub.obtainedMarks || (Number(sub.theoryMarks || 0) + Number(sub.practicalMarks || 0))}</td>
                         <td className="p-3 text-center">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            sub.status === 'Pass' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            (sub.status === 'Pass' || Number(sub.obtainedMarks || sub.totalMarks || 0) >= 36) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                           }`}>
-                            {sub.status}
+                            {sub.status || (Number(sub.obtainedMarks || sub.totalMarks || 0) >= 36 ? 'Pass' : 'Fail')}
                           </span>
                         </td>
                       </tr>
@@ -1356,7 +1367,7 @@ const Results = () => {
                 </div>
                 <div className="text-center p-2">
                   <span className="text-[10px] font-bold text-slate-500 uppercase block">Declaration Date:</span>
-                  <span className="text-sm font-bold text-slate-800">{selectedMarksheet.declaredDate || '26-08-2026'}</span>
+                  <span className="text-sm font-bold text-slate-800">{selectedMarksheet.declaredDate || new Date().toLocaleDateString('en-GB')}</span>
                 </div>
               </div>
 

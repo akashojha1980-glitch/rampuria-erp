@@ -72,7 +72,7 @@ const Layout = () => {
       
       {/* ─── CUSTOM SOFT GLOW CURSOR TRAILER ─── */}
       <div 
-        className="fixed w-36 h-36 rounded-full pointer-events-none z-50 transition-transform duration-[400ms] ease-out -translate-x-1/2 -translate-y-1/2 opacity-40 dark:opacity-20"
+        className="fixed w-36 h-36 rounded-full pointer-events-none z-50 transition-transform duration-[400ms] ease-out -translate-x-1/2 -translate-y-1/2 opacity-40 dark:opacity-20 no-print"
         style={{
           left: `${cursorPos.x}px`,
           top: `${cursorPos.y}px`,
@@ -82,7 +82,7 @@ const Layout = () => {
       />
 
       {/* ─── DYNAMIC FLOATING BACKGROUND VECTORS (SVG) ─── */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.25] dark:opacity-[0.18]">
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.25] dark:opacity-[0.18] no-print">
         {/* Floating BookOpen */}
         <div className="absolute top-[12%] left-[25%] animate-float-screen1 text-brand-500/80 dark:text-brand-500/60">
           <BookOpen size={90} strokeWidth={0.8} />
@@ -113,10 +113,10 @@ const Layout = () => {
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 pl-[19rem] pr-8 py-8 min-h-screen flex flex-col space-y-8 relative z-10">
+      <div className="flex-1 pl-[19rem] pr-8 py-8 min-h-screen flex flex-col space-y-8 relative z-10 print:pl-0 print:pr-0 print:py-0 print:space-y-0 print:m-0 print:block">
         
         {/* Top Header */}
-        <header className="classy-card px-8 py-5 flex items-center justify-between z-10 border border-warm-200/50 dark:border-darkbg-border">
+        <header className="classy-card px-8 py-5 flex items-center justify-between z-10 border border-warm-200/50 dark:border-darkbg-border no-print">
           <div>
             <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest leading-none">ERP System Control</span>
             <h2 className="text-2xl font-serif font-semibold text-warm-900 dark:text-slate-100 leading-none mt-2">{getPageTitle()}</h2>
