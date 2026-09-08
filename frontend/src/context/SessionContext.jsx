@@ -25,7 +25,7 @@ export const SessionProvider = ({ children }) => {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          const names = data.map(s => s.sessionName || s);
+          const names = data.map(s => typeof s === 'string' ? s : (s.sessionName || s.name || '')).filter(Boolean);
           setSessions(['All Sessions', ...names.filter(n => n !== 'All Sessions')]);
 
           // If there is an active session marked in DB and no local override

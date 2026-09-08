@@ -114,11 +114,17 @@ const Reports = () => {
         ]);
         if (resSess.ok) {
           const s = await resSess.json();
-          if (Array.isArray(s) && s.length > 0) setSessions(s.map(x => x.sessionName || x));
+          if (Array.isArray(s) && s.length > 0) {
+            const sessionNames = s.map(x => typeof x === 'string' ? x : (x.sessionName || x.name || '')).filter(Boolean);
+            if (sessionNames.length > 0) setSessions(sessionNames);
+          }
         }
         if (resCourses.ok) {
           const c = await resCourses.json();
-          if (Array.isArray(c) && c.length > 0) setCourses(c.map(x => x.courseName || x));
+          if (Array.isArray(c) && c.length > 0) {
+            const courseNames = c.map(x => typeof x === 'string' ? x : (x.name || x.courseName || x.code || '')).filter(Boolean);
+            if (courseNames.length > 0) setCourses(courseNames);
+          }
         }
       } catch (err) {
         console.error('Failed to load sessions/courses meta', err);
