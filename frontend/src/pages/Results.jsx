@@ -349,20 +349,24 @@ const Results = () => {
     }
   };
 
-  // Seed sample results if database is empty
+  // Seed sample results if database is empty or for current session
   const handleSeedDemoResults = async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('/api/results/seed-demo', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ session: activeSession || '2026-27' })
       });
       const data = await res.json();
       if (res.ok) {
         setToast({ type: 'success', message: data.message });
         fetchResults();
       } else {
-        setToast({ type: 'info', message: data.message });
+        setToast({ type: 'info', message: data.message || 'Could not generate demo results' });
       }
     } catch (e) {
       setToast({ type: 'error', message: 'Failed to populate sample results' });
@@ -941,7 +945,7 @@ const Results = () => {
                                     updated[idx].code = e.target.value;
                                     setFormData({ ...formData, subjects: updated });
                                   }}
-                                  className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono text-xs"
+                                  className="w-full px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 font-mono text-xs font-bold"
                                 />
                               </td>
                               <td className="p-2.5">
@@ -953,7 +957,7 @@ const Results = () => {
                                     updated[idx].name = e.target.value;
                                     setFormData({ ...formData, subjects: updated });
                                   }}
-                                  className="w-full px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-xs"
+                                  className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 text-xs font-semibold"
                                 />
                               </td>
                               <td className="p-2.5 text-center">
@@ -961,7 +965,7 @@ const Results = () => {
                                   type="number"
                                   value={sub.maxMarks}
                                   onChange={(e) => handleSubjectMarkChange(idx, 'maxMarks', e.target.value)}
-                                  className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
+                                  className="w-16 px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 text-center font-mono text-xs font-bold"
                                 />
                               </td>
                               <td className="p-2.5 text-center">
@@ -969,7 +973,7 @@ const Results = () => {
                                   type="number"
                                   value={sub.minMarks}
                                   onChange={(e) => handleSubjectMarkChange(idx, 'minMarks', e.target.value)}
-                                  className="w-16 px-2 py-1 rounded-lg border border-warm-200 dark:border-darkbg-border text-center font-mono text-xs"
+                                  className="w-16 px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 text-center font-mono text-xs font-bold"
                                 />
                               </td>
                               <td className="p-2.5 text-center">
@@ -977,7 +981,7 @@ const Results = () => {
                                   type="number"
                                   value={sub.theoryMarks}
                                   onChange={(e) => handleSubjectMarkChange(idx, 'theoryMarks', e.target.value)}
-                                  className="w-20 px-2 py-1 rounded-lg border border-brand-500 font-bold text-brand-600 dark:text-brand-400 text-center font-mono text-xs"
+                                  className="w-20 px-2 py-1.5 rounded-lg border border-brand-500 bg-warm-50/50 dark:bg-darkbg-base font-bold text-brand-600 dark:text-brand-400 text-center font-mono text-xs"
                                 />
                               </td>
                               <td className="p-2.5 text-center">
@@ -1136,7 +1140,7 @@ const Results = () => {
                                 required
                                 value={st.rollNo}
                                 onChange={(e) => handleBatchMarkChange(idx, 'rollNo', e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono font-bold text-xs"
+                                className="w-full px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 font-mono font-bold text-xs"
                               />
                             </td>
                             <td className="p-3 font-semibold text-warm-900 dark:text-slate-100">
@@ -1149,7 +1153,7 @@ const Results = () => {
                                 required
                                 value={st.totalMaxMarks}
                                 onChange={(e) => handleBatchMarkChange(idx, 'totalMaxMarks', e.target.value)}
-                                className="w-20 px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border font-mono text-center text-xs"
+                                className="w-20 px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-warm-900 dark:text-slate-100 font-mono text-center text-xs font-bold"
                               />
                             </td>
                             <td className="p-2.5 text-center">
@@ -1158,7 +1162,7 @@ const Results = () => {
                                 required
                                 value={st.totalObtainedMarks}
                                 onChange={(e) => handleBatchMarkChange(idx, 'totalObtainedMarks', e.target.value)}
-                                className="w-24 px-2 py-1.5 rounded-lg border border-brand-500 font-bold text-brand-600 dark:text-brand-400 font-mono text-center text-xs"
+                                className="w-24 px-2 py-1.5 rounded-lg border border-brand-500 bg-warm-50/50 dark:bg-darkbg-base font-bold text-brand-600 dark:text-brand-400 font-mono text-center text-xs"
                               />
                             </td>
                             <td className="p-3 text-center font-bold">

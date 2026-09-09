@@ -441,25 +441,132 @@ router.delete('/:id', protect, async (req, res) => {
   }
 });
 
-// @desc    Auto Seed / Generate Demo Results for existing students if empty
+// @desc    Auto Seed / Generate Demo Results for existing students
 // @route   POST /api/results/seed-demo
 // @access  Private
 router.post('/seed-demo', protect, async (req, res) => {
   try {
-    const count = await Result.count();
-    if (count > 0) {
-      return res.json({ message: 'Results already exist in database', count });
+    const targetSession = req.body.session || '2026-27';
+
+    // Find students for this session or any available students
+    let students = await Student.findAll({ 
+      where: { academicSession: targetSession },
+      limit: 20 
+    });
+
+    if (students.length === 0) {
+      students = await Student.findAll({ limit: 20 });
     }
 
-    const students = await Student.findAll({ limit: 15 });
+    // If still no students exist, create demo students for this session
     if (students.length === 0) {
-      return res.status(400).json({ message: 'No registered students found to create marks' });
+      const demoStudentsData = [
+        {
+          fullName: 'Aakash Sharma',
+          fatherName: 'Ramkishan Sharma',
+          motherName: 'Sunita Sharma',
+          gender: 'Male',
+          category: 'General',
+          courseApplied: 'LLB',
+          academicSession: targetSession,
+          currentYear: '1st Year',
+          currentSemester: '1st Sem',
+          mobileNumber: '9829012345',
+          email: 'aakash.sharma@example.com',
+          address: 'Station Road, Bikaner',
+          city: 'Bikaner',
+          state: 'Rajasthan',
+          pincode: '334001',
+          registrationId: `REG-${targetSession.slice(0, 4)}001`,
+          formNo: '1001',
+          srNo: 1,
+          verificationStatus: 'Verified'
+        },
+        {
+          fullName: 'Pooja Agarwal',
+          fatherName: 'Sanjay Agarwal',
+          motherName: 'Meena Agarwal',
+          gender: 'Female',
+          category: 'General',
+          courseApplied: 'LLB',
+          academicSession: targetSession,
+          currentYear: '1st Year',
+          currentSemester: '1st Sem',
+          mobileNumber: '9829054321',
+          email: 'pooja.agarwal@example.com',
+          address: 'Kote Gate, Bikaner',
+          city: 'Bikaner',
+          state: 'Rajasthan',
+          pincode: '334001',
+          registrationId: `REG-${targetSession.slice(0, 4)}002`,
+          formNo: '1002',
+          srNo: 2,
+          verificationStatus: 'Verified'
+        },
+        {
+          fullName: 'Rahul Verma',
+          fatherName: 'Mukesh Verma',
+          motherName: 'Saroj Verma',
+          gender: 'Male',
+          category: 'OBC',
+          courseApplied: 'BALLB',
+          academicSession: targetSession,
+          currentYear: '1st Year',
+          currentSemester: '1st Sem',
+          mobileNumber: '9414011223',
+          email: 'rahul.verma@example.com',
+          address: 'JNV Colony, Bikaner',
+          city: 'Bikaner',
+          state: 'Rajasthan',
+          pincode: '334003',
+          registrationId: `REG-${targetSession.slice(0, 4)}003`,
+          formNo: '1003',
+          srNo: 3,
+          verificationStatus: 'Verified'
+        },
+        {
+          fullName: 'Anjali Rathore',
+          fatherName: 'Vikram Singh',
+          motherName: 'Kavita Rathore',
+          gender: 'Female',
+          category: 'General',
+          courseApplied: 'LLB',
+          academicSession: targetSession,
+          currentYear: '1st Year',
+          currentSemester: '1st Sem',
+          mobileNumber: '9414099887',
+          email: 'anjali.rathore@example.com',
+          address: 'Sadar, Bikaner',
+          city: 'Bikaner',
+          state: 'Rajasthan',
+          pincode: '334001',
+          registrationId: `REG-${targetSession.slice(0, 4)}004`,
+          formNo: '1004',
+          srNo: 4,
+          verificationStatus: 'Verified'
+        }
+      ];
+
+      students = await Student.bulkCreate(demoStudentsData);
     }
 
     const sampleResults = [];
     let rollCounter = 10101;
 
     for (const st of students) {
+      // Check if result already exists for this student & session
+      const existing = await Result.findOne({
+        where: {
+          [Op.or]: [
+            { studentId: st.id },
+            { registrationId: st.registrationId }
+          ],
+          academicSession: targetSession
+        }
+      });
+
+      if (existing) continue;
+
       const normalized = (st.courseApplied || 'LLB').toUpperCase().replace(/[^A-Z]/g, '');
       const template = COURSE_SUBJECT_TEMPLATES[normalized] || COURSE_SUBJECT_TEMPLATES['LLB'];
 
@@ -467,7 +574,7 @@ router.post('/seed-demo', protect, async (req, res) => {
       let totalObtained = 0;
 
       const subjects = template.map(s => {
-        const theory = Math.floor(45 + Math.random() * 45); // 45 to 90
+        const theory = Math.floor(48 + Math.random() * 42); // 48 to 90
         const practical = 0;
         const total = theory + practical;
         totalMax += s.maxMarks;
@@ -489,16 +596,16 @@ router.post('/seed-demo', protect, async (req, res) => {
 
       sampleResults.push({
         studentId: st.id,
-        registrationId: st.registrationId,
+        registrationId: st.registrationId || `REG-${targetSession.slice(0, 4)}${rollCounter}`,
         rollNo: String(rollCounter++),
         studentName: st.fullName,
         fatherName: st.fatherName || '',
         course: st.courseApplied || 'LLB',
-        academicSession: st.academicSession || '2025-26',
+        academicSession: targetSession,
         year: st.currentYear || '1st Year',
         semester: 'Annual',
         examType: 'Main Annual Exam',
-        examMonthYear: 'May 2026',
+        examMonthYear: 'May ' + (targetSession.split('-')[0] || '2026'),
         subjects,
         totalMaxMarks: totalMax,
         totalObtainedMarks: totalObtained,
@@ -509,11 +616,15 @@ router.post('/seed-demo', protect, async (req, res) => {
       });
     }
 
+    if (sampleResults.length === 0) {
+      return res.json({ message: `Results for session ${targetSession} are already up to date!`, count: 0 });
+    }
+
     await Result.bulkCreate(sampleResults);
-    res.json({ message: `Successfully generated ${sampleResults.length} marksheet results!`, count: sampleResults.length });
+    res.json({ message: `Successfully generated ${sampleResults.length} demo marksheet results for Session ${targetSession}!`, count: sampleResults.length });
   } catch (error) {
     console.error('[Results Seed] Error:', error.message);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message || 'Failed to generate demo results' });
   }
 });
 
