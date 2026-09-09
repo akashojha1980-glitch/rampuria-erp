@@ -42,6 +42,50 @@ const Course = sequelize.define('Course', {
     set(value) {
       this.setDataValue('reservations', JSON.stringify(value));
     }
+  },
+  schemeType: {
+    type: DataTypes.STRING,
+    defaultValue: 'Semester'
+  },
+  academicYear: {
+    type: DataTypes.STRING,
+    defaultValue: '1st Year'
+  },
+  semester: {
+    type: DataTypes.STRING,
+    defaultValue: 'I & II Semester'
+  },
+  firstInstallment: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0.0
+  },
+  firstInstallmentDesc: {
+    type: DataTypes.STRING,
+    defaultValue: 'at the time of Admission'
+  },
+  secondInstallment: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0.0
+  },
+  secondInstallmentDesc: {
+    type: DataTypes.STRING,
+    defaultValue: 'at the time of Exam Form'
+  },
+  totalFee: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0.0
+  },
+  cautionMoney: {
+    type: DataTypes.FLOAT,
+    defaultValue: 300.0
+  },
+  provisionalPromotionFee: {
+    type: DataTypes.FLOAT,
+    defaultValue: 300.0
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   }
 });
 

@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
+import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
 
 const Registration = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const Registration = () => {
   const [students, setStudents] = useState([]);
   const [courses, setCourses] = useState([]);
   const [toast, setToast] = useState(null);
+  const [showFeeSettingsModal, setShowFeeSettingsModal] = useState(false);
 
   // Pagination & Filter States
   const [search, setSearch] = useState('');
@@ -789,6 +791,16 @@ const Registration = () => {
                   >
                     <Settings className="w-4 h-4" />
                     <span>Reg No. Settings</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => setShowFeeSettingsModal(true)}
+                    className="p-3 rounded-xl bg-warm-100 dark:bg-darkbg-base hover:bg-warm-200 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all flex items-center space-x-1.5"
+                    title="Configure Classes & Fee Structure Master"
+                  >
+                    <DollarSign className="w-4 h-4 text-brand-500" />
+                    <span>Classes & Fees</span>
                   </button>
 
                   <button 
@@ -2268,6 +2280,13 @@ const Registration = () => {
           </div>
         </div>
       )}
+
+      {/* Classes & Fee Structure Master Settings Modal */}
+      <FeeStructureSettingsModal
+        isOpen={showFeeSettingsModal}
+        onClose={() => setShowFeeSettingsModal(false)}
+        onFeeUpdated={fetchCourses}
+      />
 
     </div>
   );

@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, Search, ArrowUpRight, TrendingUp, 
   AlertCircle, DollarSign, Calendar, Eye, Filter,
-  Printer, FileText, ChevronLeft, ChevronRight
+  Printer, FileText, ChevronLeft, ChevronRight, Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
+import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
 
 const getCourseBadge = (course) => {
   if (!course) return null;
@@ -39,6 +40,7 @@ const FeesConsole = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [showFeeSettings, setShowFeeSettings] = useState(false);
   
   // Filters
   const [search, setSearch] = useState('');
@@ -113,6 +115,12 @@ const FeesConsole = () => {
     <div className="flex flex-col space-y-8 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+      <FeeStructureSettingsModal
+        isOpen={showFeeSettings}
+        onClose={() => setShowFeeSettings(false)}
+        onFeeUpdated={fetchFeesData}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 no-print">
         <div>
@@ -125,38 +133,49 @@ const FeesConsole = () => {
           <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">B.J.S. Rampuria Jain Law College ERP • Fee Collection & Due Recovery</p>
         </div>
 
-        {/* Status Filter Tab Pills */}
-        <div className="flex items-center bg-warm-100 dark:bg-darkbg-surface p-1 rounded-xl border border-warm-200 dark:border-darkbg-border">
+        {/* Action Controls & Status Filter Tab Pills */}
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => { setStatusFilter('all'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              statusFilter === 'all' 
-                ? 'bg-white dark:bg-darkbg-base text-warm-900 dark:text-white shadow-sm' 
-                : 'text-warm-800/60 dark:text-slate-400 hover:text-warm-900'
-            }`}
+            onClick={() => setShowFeeSettings(true)}
+            className="px-3.5 py-2 bg-white dark:bg-darkbg-surface hover:bg-warm-100/70 dark:hover:bg-darkbg-base border border-warm-200 dark:border-darkbg-border text-warm-900 dark:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm active:scale-95"
+            title="Manage Course Fees, Installments & Caution Money"
           >
-            All ({stats.totalTransactions})
+            <Settings className="w-4 h-4 text-brand-500" />
+            <span>Class & Fee Settings</span>
           </button>
-          <button
-            onClick={() => { setStatusFilter('paid'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              statusFilter === 'paid' 
-                ? 'bg-emerald-500 text-white shadow-sm' 
-                : 'text-warm-800/60 dark:text-slate-400 hover:text-emerald-600'
-            }`}
-          >
-            ✓ Fully Paid ({stats.fullyPaidCount || 0})
-          </button>
-          <button
-            onClick={() => { setStatusFilter('due'); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              statusFilter === 'due' 
-                ? 'bg-rose-500 text-white shadow-sm' 
-                : 'text-warm-800/60 dark:text-slate-400 hover:text-rose-600'
-            }`}
-          >
-            ⚠️ Pending Due ({stats.pendingDueCount || 0})
-          </button>
+
+          <div className="flex items-center bg-warm-100 dark:bg-darkbg-surface p-1 rounded-xl border border-warm-200 dark:border-darkbg-border">
+            <button
+              onClick={() => { setStatusFilter('all'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'all' 
+                  ? 'bg-white dark:bg-darkbg-base text-warm-900 dark:text-white shadow-sm' 
+                  : 'text-warm-800/60 dark:text-slate-400 hover:text-warm-900'
+              }`}
+            >
+              All ({stats.totalTransactions})
+            </button>
+            <button
+              onClick={() => { setStatusFilter('paid'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'paid' 
+                  ? 'bg-emerald-500 text-white shadow-sm' 
+                  : 'text-warm-800/60 dark:text-slate-400 hover:text-emerald-600'
+              }`}
+            >
+              ✓ Fully Paid ({stats.fullyPaidCount || 0})
+            </button>
+            <button
+              onClick={() => { setStatusFilter('due'); setPage(1); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'due' 
+                  ? 'bg-rose-500 text-white shadow-sm' 
+                  : 'text-warm-800/60 dark:text-slate-400 hover:text-rose-600'
+              }`}
+            >
+              ⚠️ Pending Due ({stats.pendingDueCount || 0})
+            </button>
+          </div>
         </div>
       </div>
 
