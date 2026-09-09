@@ -247,7 +247,7 @@ router.get('/fees-posting', protect, async (req, res) => {
     }
 
     if (feeHead && feeHead !== 'All') {
-      where.feeHead = feeHead;
+      where.installmentName = feeHead;
     }
 
     const studentWhere = {};
@@ -272,7 +272,7 @@ router.get('/fees-posting', protect, async (req, res) => {
         as: 'student',
         attributes: [
           'id', 'fullName', 'registrationId', 'courseApplied', 
-          'academicSession', 'academicYear', 'semester', 'mobileNumber', 'fatherName'
+          'academicSession', 'currentYear', 'currentSemester', 'mobileNumber', 'fatherName'
         ],
         where: Object.keys(studentWhere).length > 0 ? studentWhere : undefined
       }],
@@ -286,7 +286,12 @@ router.get('/fees-posting', protect, async (req, res) => {
     const records = transactions.map(t => {
       const obj = mapId(t);
       obj._id = obj.id;
-      if (obj.student) obj.student._id = obj.student.id;
+      if (obj.student) {
+        obj.student._id = obj.student.id;
+        obj.student.academicYear = obj.student.currentYear;
+        obj.student.semester = obj.student.currentSemester;
+      }
+      obj.feeHead = obj.installmentName || 'General / Tuition';
 
       const amt = Number(obj.amountPaid) || 0;
       totalAmount += amt;
@@ -298,7 +303,7 @@ router.get('/fees-posting', protect, async (req, res) => {
         modeBreakdown.Other += amt;
       }
 
-      const headKey = obj.feeHead || 'General / Tuition';
+      const headKey = obj.feeHead;
       headBreakdown[headKey] = (headBreakdown[headKey] || 0) + amt;
 
       return obj;
@@ -349,7 +354,7 @@ router.get('/day-book', protect, async (req, res) => {
         as: 'student',
         attributes: [
           'id', 'fullName', 'registrationId', 'courseApplied', 
-          'academicSession', 'academicYear', 'semester', 'mobileNumber'
+          'academicSession', 'currentYear', 'currentSemester', 'mobileNumber'
         ],
         where: Object.keys(studentWhere).length > 0 ? studentWhere : undefined
       }],
@@ -365,8 +370,13 @@ router.get('/day-book', protect, async (req, res) => {
     const vouchers = transactions.map((t, index) => {
       const obj = mapId(t);
       obj._id = obj.id;
-      if (obj.student) obj.student._id = obj.student.id;
+      if (obj.student) {
+        obj.student._id = obj.student.id;
+        obj.student.academicYear = obj.student.currentYear;
+        obj.student.semester = obj.student.currentSemester;
+      }
       obj.voucherNo = `VR-${String(index + 1).padStart(4, '0')}`;
+      obj.feeHead = obj.installmentName || 'Tuition Fee';
 
       const amt = Number(obj.amountPaid) || 0;
       totalAmount += amt;
