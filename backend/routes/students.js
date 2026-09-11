@@ -202,36 +202,56 @@ router.post('/', protect, upload.fields(studentUploadFields), async (req, res) =
 // @route   GET /api/students
 // @access  Private
 router.get('/', protect, async (req, res) => {
-  const { search, course, category, status, session, page = 1, limit = 20 } = req.query;
+  const { search, course, category, status, session, sortBy = 'accNo_asc', page = 1, limit = 25 } = req.query;
   const where = {};
 
-  if (session && session !== 'all') where.academicSession = session;
-  if (course) where.courseApplied = course;
-  if (category) where.category = category;
+  if (session && session !== 'all' && session !== 'All' && session !== 'All Sessions') {
+    where.academicSession = session;
+  }
+  if (course && course !== 'all') where.courseApplied = course;
+  if (category && category !== 'all') where.category = category;
   
-  if (status === 'verified') {
-    where.verificationStatus = 'Verified';
-  } else if (status === 'pending') {
+  if (status === 'verified' || status === 'Approved' || status === 'Verified') {
+    where.verificationStatus = { [Op.in]: ['Verified', 'Approved'] };
+  } else if (status === 'pending' || status === 'Pending') {
     where.verificationStatus = 'Pending';
   } else if (status === 'allotted') {
     where.seatAllotted = true;
   }
 
-  if (search) {
+  if (search && search.trim() !== '') {
+    const s = search.trim();
     where[Op.or] = [
-      { fullName: { [Op.like]: `%${search}%` } },
-      { registrationId: { [Op.like]: `%${search}%` } },
-      { email: { [Op.like]: `%${search}%` } },
-      { mobileNumber: { [Op.like]: `%${search}%` } }
+      { fullName: { [Op.like]: `%${s}%` } },
+      { fatherName: { [Op.like]: `%${s}%` } },
+      { motherName: { [Op.like]: `%${s}%` } },
+      { studentAccNo: { [Op.like]: `%${s}%` } },
+      { registrationId: { [Op.like]: `%${s}%` } },
+      { formNo: { [Op.like]: `%${s}%` } },
+      { email: { [Op.like]: `%${s}%` } },
+      { mobileNumber: { [Op.like]: `%${s}%` } },
+      { whatsAppNo: { [Op.like]: `%${s}%` } },
+      { aadharNo: { [Op.like]: `%${s}%` } }
     ];
+  }
+
+  let order = [['studentAccNo', 'ASC'], ['srNo', 'ASC']];
+  if (sortBy === 'recent') {
+    order = [['createdAt', 'DESC']];
+  } else if (sortBy === 'srNo_asc') {
+    order = [['srNo', 'ASC']];
+  } else if (sortBy === 'name_asc') {
+    order = [['fullName', 'ASC']];
+  } else if (sortBy === 'accNo_asc') {
+    order = [['studentAccNo', 'ASC'], ['srNo', 'ASC']];
   }
 
   try {
     const { count, rows: students } = await Student.findAndCountAll({
       where,
-      limit: Number(limit),
-      offset: (Number(page) - 1) * Number(limit),
-      order: [['createdAt', 'DESC']]
+      limit: Number(limit) || 25,
+      offset: (Number(page) - 1) * (Number(limit) || 25),
+      order
     });
 
     const enrichedStudents = await Promise.all(students.map(async (st) => {

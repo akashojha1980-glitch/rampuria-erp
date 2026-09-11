@@ -4,16 +4,18 @@ import {
   Search, Plus, Filter, Download, ArrowLeft,
   ChevronLeft, ChevronRight, Edit2, Trash2, Eye, Calendar, TrendingUp,
   FileSpreadsheet, Settings, Upload, CheckCircle2, AlertTriangle, X, RefreshCw,
-  DollarSign
+  DollarSign, ArrowUpDown, Layers
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSession } from '../context/SessionContext';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
 
 const Registration = () => {
   const navigate = useNavigate();
+  const { activeSession, sessions } = useSession();
   
   // Tabs: 'list' or 'form'
   const [activeTab, setActiveTab] = useState('list');
@@ -25,11 +27,13 @@ const Registration = () => {
 
   // Pagination & Filter States
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('accNo_asc');
+  const [sessionFilter, setSessionFilter] = useState('All Sessions');
   const [courseFilter, setCourseFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(100);
   const [pages, setPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
 
@@ -161,10 +165,15 @@ const Registration = () => {
         page,
         limit: pageSize,
         search,
+        sortBy,
         course: courseFilter,
         status: statusFilter,
         category: categoryFilter
       });
+
+      if (sessionFilter && sessionFilter !== 'All Sessions') {
+        queryParams.append('session', sessionFilter);
+      }
 
       const res = await fetch(`/api/students?${queryParams}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -182,6 +191,12 @@ const Registration = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setPage(1);
+    fetchStudents();
   };
 
   const handleBulkPromoteSubmit = async (e) => {
@@ -238,11 +253,22 @@ const Registration = () => {
     fetchRegSettings();
   }, []);
 
+  // Sync activeSession from top header when it changes
+  useEffect(() => {
+    if (activeSession && activeSession !== 'All Sessions') {
+      setSessionFilter(activeSession);
+    }
+  }, [activeSession]);
+
+  // Instant Debounced Live Search and Filter sync
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchStudents();
+      const debounceTimer = setTimeout(() => {
+        fetchStudents();
+      }, 200);
+      return () => clearTimeout(debounceTimer);
     }
-  }, [activeTab, page, pageSize, courseFilter, statusFilter, categoryFilter]);
+  }, [activeTab, page, pageSize, search, sortBy, sessionFilter, courseFilter, statusFilter, categoryFilter]);
 
   // Download Sample Excel Template for Students
   const handleDownloadSampleExcel = () => {
@@ -470,12 +496,6 @@ const Registration = () => {
     }
   };
 
-  // Handle Search Submit
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-    fetchStudents();
-  };
 
   // Handle Student Delete
   const handleDelete = async (id) => {
@@ -780,17 +800,29 @@ const Registration = () => {
               
               {/* Toolbar Headers */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Search input */}
-                <form onSubmit={handleSearch} className="flex-1 max-w-md relative">
+                {/* Search input - Instant Live Search on typing */}
+                <div className="flex-1 max-w-lg relative">
                   <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-warm-800/40 dark:text-slate-500" />
                   <input
                     type="text"
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by student name, email, mobile..."
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Type to search (Name, Father, A/C No. 1001, Reg No, Mobile)..."
+                    className="w-full pl-11 pr-10 py-3 rounded-xl border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold focus:ring-1 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
                   />
-                </form>
+                  {search && (
+                    <button
+                      onClick={() => { setSearch(''); setPage(1); }}
+                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      title="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
 
                 {/* Operations */}
                 <div className="flex flex-wrap items-center gap-2">
@@ -837,15 +869,51 @@ const Registration = () => {
               <div className="h-px bg-warm-200/50 dark:bg-darkbg-border w-full" />
 
               {/* Multi-Filters Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 
+                {/* Sort Order Selector */}
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <ArrowUpDown className="w-3 h-3" />
+                    <span>Sort Order</span>
+                  </label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                    className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold outline-none text-warm-800 dark:text-slate-300"
+                  >
+                    <option value="accNo_asc">A/C No. (1001, 1002...) Sequence</option>
+                    <option value="srNo_asc">SR No. (1, 2, 3...) Sequence</option>
+                    <option value="recent">Recent Added First</option>
+                    <option value="name_asc">Student Name (A-Z)</option>
+                  </select>
+                </div>
+
+                {/* Session Filter */}
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    <span>Academic Session</span>
+                  </label>
+                  <select
+                    value={sessionFilter}
+                    onChange={(e) => { setSessionFilter(e.target.value); setPage(1); }}
+                    className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold outline-none text-warm-800 dark:text-slate-300"
+                  >
+                    <option value="All Sessions">All Sessions (All Students)</option>
+                    {sessions && sessions.filter(s => s !== 'All Sessions').map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Course Filter */}
                 <div className="flex flex-col space-y-1">
                   <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Applied Course</label>
                   <select
                     value={courseFilter}
                     onChange={(e) => { setCourseFilter(e.target.value); setPage(1); }}
-                    className="px-3.5 py-2.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
+                    className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
                   >
                     <option value="">All Courses</option>
                     {courses.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
@@ -858,7 +926,7 @@ const Registration = () => {
                   <select
                     value={statusFilter}
                     onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                    className="px-3.5 py-2.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
+                    className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
                   >
                     <option value="">All Statuses</option>
                     <option value="pending">Pending</option>
@@ -873,13 +941,15 @@ const Registration = () => {
                   <select
                     value={categoryFilter}
                     onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-                    className="px-3.5 py-2.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
+                    className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-medium outline-none text-warm-800 dark:text-slate-300"
                   >
                     <option value="">All Categories</option>
                     <option value="General">General</option>
                     <option value="OBC">OBC</option>
                     <option value="SC">SC</option>
                     <option value="ST">ST</option>
+                    <option value="EWS">EWS</option>
+                    <option value="MBC">MBC</option>
                   </select>
                 </div>
               </div>
@@ -914,7 +984,7 @@ const Registration = () => {
                     <table className="min-w-full divide-y divide-warm-200/30 dark:divide-darkbg-border">
                       <thead className="bg-warm-50/50 dark:bg-darkbg-base/30">
                         <tr>
-                          <th className="w-12 px-6 py-4 text-center">
+                          <th className="w-12 px-4 py-4 text-center">
                             <input
                               type="checkbox"
                               checked={students.length > 0 && selectedIds.length === students.length}
@@ -928,20 +998,20 @@ const Registration = () => {
                               className="rounded border-warm-300 dark:border-darkbg-border text-brand-600 focus:ring-brand-500"
                             />
                           </th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">SR No.</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Student Name</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Mobile</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Year/Sem</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">12th Marks</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Course Applied</th>
-                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Verification</th>
-                          <th className="px-6 py-4 text-center text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Actions</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">A/C No.</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Reg. No.</th>
+                          <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Student & Father Name</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Contact / Mobile</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Category</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Course Applied</th>
+                          <th className="px-4 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Verification</th>
+                          <th className="px-4 py-4 text-center text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-warm-200/20 dark:divide-darkbg-border bg-transparent">
                         {students.map((s) => (
                           <tr key={s._id} className={`hover:bg-warm-100/10 dark:hover:bg-darkbg-base/20 transition-all ${selectedIds.includes(s._id) ? 'bg-indigo-50/10 dark:bg-indigo-500/5' : ''}`}>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-4 py-4 text-center">
                               <input
                                 type="checkbox"
                                 checked={selectedIds.includes(s._id)}
@@ -955,36 +1025,75 @@ const Registration = () => {
                                 className="rounded border-warm-300 dark:border-darkbg-border text-brand-600 focus:ring-brand-500"
                               />
                             </td>
-                            <td className="px-6 py-4 text-xs font-bold text-warm-900 dark:text-slate-200">
-                              #{s.srNo || '-'}
+                            {/* A/C No. Column */}
+                            <td className="px-4 py-4 text-xs">
+                              <span className="inline-flex items-center px-2.5 py-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono font-bold text-xs rounded-lg border border-amber-500/20">
+                                {s.studentAccNo || s.srNo || '-'}
+                              </span>
                             </td>
+                            {/* Reg. No. Column */}
+                            <td className="px-4 py-4 text-xs font-mono font-semibold text-slate-600 dark:text-slate-400">
+                              {s.registrationId || '-'}
+                            </td>
+                            {/* Student & Father Name */}
                             <td className="px-6 py-4 text-xs">
                               <div className="flex flex-col">
-                                <span className="font-bold text-warm-900 dark:text-slate-200">{s.fullName}</span>
-                                <span className="text-[10px] text-warm-800/40 dark:text-slate-500 font-semibold mt-0.5 uppercase tracking-wider">{s.registrationId}</span>
+                                <span className="font-bold text-warm-900 dark:text-slate-100 text-[13px]">{s.fullName}</span>
+                                {s.fatherName && (
+                                  <span className="text-[11px] text-warm-800/60 dark:text-slate-400 font-medium">
+                                    S/D/W of <span className="font-semibold text-warm-900 dark:text-slate-300">{s.fatherName}</span>
+                                  </span>
+                                )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-xs text-warm-800/60 dark:text-slate-400">{s.mobileNumber}</td>
-                            <td className="px-6 py-4 text-xs text-warm-800/60 dark:text-slate-400 font-semibold">{s.currentYear || '1st Year'} - {s.currentSemester || 'Annual'}</td>
-                            <td className="px-6 py-4 text-xs font-bold text-warm-900 dark:text-slate-200">{s.marks12}%</td>
-                            <td className="px-6 py-4 text-xs font-bold text-brand-600 dark:text-brand-300">{s.courseApplied}</td>
-                            <td className="px-6 py-4 text-xs">
+                            {/* Contact / Mobile & WhatsApp */}
+                            <td className="px-4 py-4 text-xs">
+                              <div className="flex flex-col font-mono">
+                                <span className="text-warm-900 dark:text-slate-200 font-medium">{s.mobileNumber || '-'}</span>
+                                {s.whatsAppNo && s.whatsAppNo !== s.mobileNumber && (
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">WA: {s.whatsAppNo}</span>
+                                )}
+                              </div>
+                            </td>
+                            {/* Category & Gender */}
+                            <td className="px-4 py-4 text-xs">
+                              <div className="flex items-center space-x-1.5">
+                                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-warm-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300">
+                                  {s.category || 'General'}
+                                </span>
+                                {s.gender && (
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.gender === 'Female' || s.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                                    {s.gender === 'M' ? 'Male' : s.gender === 'F' ? 'Female' : s.gender}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {/* Course Applied & Year */}
+                            <td className="px-4 py-4 text-xs">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-brand-600 dark:text-brand-300">{s.courseApplied}</span>
+                                <span className="text-[10px] text-warm-800/50 dark:text-slate-400 font-medium">{s.currentYear || '1st Year'}</span>
+                              </div>
+                            </td>
+                            {/* Verification Status */}
+                            <td className="px-4 py-4 text-xs">
                               <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                s.verificationStatus === 'Verified' 
+                                s.verificationStatus === 'Verified' || s.verificationStatus === 'Approved'
                                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' 
                                   : s.verificationStatus === 'Rejected'
                                   ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
                                   : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
                               }`}>
-                                {s.verificationStatus}
+                                {s.verificationStatus || 'Pending'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-xs">
-                              <div className="flex items-center justify-center space-x-2.5">
+                            {/* Actions */}
+                            <td className="px-4 py-4 text-xs">
+                              <div className="flex items-center justify-center space-x-2">
                                 <button 
                                   onClick={() => navigate(`/profile/${s._id}`)}
                                   title="View Profile & Fees"
-                                  className="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                                  className="p-1.5 rounded-lg text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
