@@ -29,6 +29,7 @@ const Registration = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [pages, setPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
 
@@ -158,7 +159,7 @@ const Registration = () => {
     try {
       const queryParams = new URLSearchParams({
         page,
-        limit: 8,
+        limit: pageSize,
         search,
         course: courseFilter,
         status: statusFilter,
@@ -173,7 +174,7 @@ const Registration = () => {
       if (res.ok) {
         setStudents(data.students || []);
         setPages(data.pages || 1);
-        setTotalStudents(data.total || 0);
+        setTotalStudents(data.total || data.count || 0);
       }
     } catch (err) {
       console.error('[Registration Fetch] Local API error:', err.message);
@@ -241,7 +242,7 @@ const Registration = () => {
     if (activeTab === 'list') {
       fetchStudents();
     }
-  }, [activeTab, page, courseFilter, statusFilter, categoryFilter]);
+  }, [activeTab, page, pageSize, courseFilter, statusFilter, categoryFilter]);
 
   // Download Sample Excel Template for Students
   const handleDownloadSampleExcel = () => {
@@ -1009,25 +1010,58 @@ const Registration = () => {
                     </table>
                   </div>
 
-                  {/* Pagination row */}
-                  <div className="flex items-center justify-between px-2 pt-2 text-xs font-semibold text-warm-800/60 dark:text-slate-400">
-                    <span>Total registry matches: {totalStudents}</span>
+                  {/* Pagination row with Page Size Selector */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between px-2 pt-3 gap-3 text-xs font-semibold text-warm-800/60 dark:text-slate-400 border-t border-warm-200/40 dark:border-darkbg-border">
                     <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => setPage(p => Math.max(p - 1, 1))}
-                        disabled={page === 1}
-                        className="p-2.5 rounded-lg bg-warm-100/50 hover:bg-warm-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors border border-warm-200/40"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span>Page {page} of {pages}</span>
-                      <button
-                        onClick={() => setPage(p => Math.min(p + 1, pages))}
-                        disabled={page === pages}
-                        className="p-2.5 rounded-lg bg-warm-100/50 hover:bg-warm-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors border border-warm-200/40"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <span className="font-bold text-warm-900 dark:text-slate-200">
+                        Total Registered Students: <strong className="text-brand-600 dark:text-brand-400 font-mono text-sm">{totalStudents}</strong>
+                      </span>
+                      <div className="flex items-center space-x-1.5 bg-warm-100/60 dark:bg-darkbg-base px-2.5 py-1 rounded-lg border border-warm-200/50 dark:border-darkbg-border">
+                        <span className="text-[10px] uppercase font-bold text-slate-500">Show:</span>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setPage(1);
+                          }}
+                          className="bg-transparent font-bold text-slate-800 dark:text-slate-200 text-xs focus:outline-none cursor-pointer"
+                        >
+                          <option value="10">10</option>
+                          <option value="25">25</option>
+                          <option value="50">50</option>
+                          <option value="100">100</option>
+                          <option value="250">250</option>
+                          <option value="500">500 (All)</option>
+                        </select>
+                        <span className="text-[10px] text-slate-400">per page</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] text-slate-500">
+                        Showing {students.length > 0 ? (page - 1) * pageSize + 1 : 0} - {Math.min(page * pageSize, totalStudents)} of {totalStudents}
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => setPage(p => Math.max(p - 1, 1))}
+                          disabled={page === 1}
+                          className="p-2 rounded-lg bg-warm-100/50 hover:bg-warm-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors border border-warm-200/40"
+                          title="Previous Page"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="px-2.5 py-1 rounded-lg bg-warm-100/80 dark:bg-darkbg-base font-bold font-mono text-slate-800 dark:text-slate-200">
+                          {page} / {pages}
+                        </span>
+                        <button
+                          onClick={() => setPage(p => Math.min(p + 1, pages))}
+                          disabled={page === pages || pages === 0}
+                          className="p-2 rounded-lg bg-warm-100/50 hover:bg-warm-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors border border-warm-200/40"
+                          title="Next Page"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2163,43 +2197,80 @@ const Registration = () => {
               {/* Preview Table */}
               {excelRows.length > 0 && !importResult && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Parsed Spreadsheet Preview ({excelRows.length} rows loaded)
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center space-x-2">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                      <span>Loaded All {excelRows.length} Student Rows from Excel</span>
                     </span>
-                    <span className="text-[10px] text-emerald-600 font-bold">
-                      Target Session: {importSession === 'custom' ? customImportSession : importSession}
+                    <span className="text-[11px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
+                      ✓ All {excelRows.length} Records Ready for Session: {importSession === 'custom' ? customImportSession : importSession}
                     </span>
                   </div>
-                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-52 overflow-y-auto">
+                  
+                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-72 overflow-y-auto shadow-inner">
                     <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="bg-warm-100/60 dark:bg-darkbg-base text-[10px] font-bold text-slate-600 border-b">
-                          <th className="px-3 py-2">#</th>
-                          <th className="px-3 py-2">Full Name</th>
-                          <th className="px-3 py-2">Father Name</th>
-                          <th className="px-3 py-2">Course</th>
-                          <th className="px-3 py-2">Assigned Session</th>
-                          <th className="px-3 py-2">Mobile</th>
-                          <th className="px-3 py-2">Category</th>
-                          <th className="px-3 py-2">10th %</th>
-                          <th className="px-3 py-2">12th %</th>
+                      <thead className="sticky top-0 bg-warm-100 dark:bg-darkbg-base text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-warm-200 dark:border-darkbg-border shadow-sm">
+                        <tr>
+                          <th className="px-2.5 py-2 text-center">S.No</th>
+                          <th className="px-2.5 py-2">Ac. No.</th>
+                          <th className="px-2.5 py-2">Registration No.</th>
+                          <th className="px-3 py-2">Student Name</th>
+                          <th className="px-3 py-2">Father's Name</th>
+                          <th className="px-3 py-2">Mother's Name</th>
+                          <th className="px-2.5 py-2 text-center">Gender</th>
+                          <th className="px-2.5 py-2 text-center">Caste / Category</th>
+                          <th className="px-3 py-2">WhatsApp Mob.</th>
+                          <th className="px-3 py-2">Other Mob.</th>
+                          <th className="px-2.5 py-2 text-center">Target Session</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-warm-200/40 font-medium">
-                        {excelRows.slice(0, 25).map((row, i) => (
-                          <tr key={i} className="hover:bg-warm-50/50">
-                            <td className="px-3 py-1.5 text-slate-400 font-mono">{i + 1}</td>
-                            <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{row['Full Name'] || row.fullName || row.name || row['Student Name'] || '-'}</td>
-                            <td className="px-3 py-1.5">{row["Father's Name"] || row.fatherName || row.FatherName || '-'}</td>
-                            <td className="px-3 py-1.5 text-brand-600">{row['Course Applied'] || row.courseApplied || row.course || importCourse}</td>
-                            <td className="px-3 py-1.5 font-bold text-indigo-600 dark:text-indigo-400">{importSession === 'custom' ? customImportSession : (row['Academic Session'] || row.academicSession || importSession)}</td>
-                            <td className="px-3 py-1.5 font-mono">{row['Mobile Number'] || row.mobileNumber || row.mobile || '-'}</td>
-                            <td className="px-3 py-1.5">{row.Category || row.category || 'General'}</td>
-                            <td className="px-3 py-1.5">{row['10th %'] || row.marks10 || '-'}</td>
-                            <td className="px-3 py-1.5">{row['12th %'] || row.marks12 || '-'}</td>
-                          </tr>
-                        ))}
+                      <tbody className="divide-y divide-warm-200/50 dark:divide-darkbg-border font-medium">
+                        {excelRows.map((row, i) => {
+                          const sNo = row['S.No'] || row['S.No.'] || row['S. No.'] || row['Sr No'] || (i + 1);
+                          const acNo = row['Ac. No.'] || row['Ac. No'] || row['Ac No.'] || row['Ac No'] || row['studentAccNo'] || '-';
+                          const regNo = row['Registration No.'] || row['Registration No'] || row['Reg No'] || row['registrationId'] || `Auto (#${1001 + i})`;
+                          const name = row['Name'] || row['name'] || row['Full Name'] || row['Student Name'] || '-';
+                          const father = row["Father's Name"] || row['Father Name'] || row['Fathers Name'] || row['fatherName'] || '-';
+                          const mother = row['Mothers Name'] || row["Mother's Name"] || row['Mother Name'] || row['motherName'] || '-';
+                          
+                          // Gender from Category (M/F) or gender column
+                          const rawCat = row['Category'] || row['category'] || '';
+                          let genderDisplay = row['Gender'] || row['gender'] || '';
+                          if (!genderDisplay && (rawCat === 'M' || rawCat === 'm')) genderDisplay = 'Male (M)';
+                          else if (!genderDisplay && (rawCat === 'F' || rawCat === 'f')) genderDisplay = 'Female (F)';
+                          else if (!genderDisplay) genderDisplay = rawCat || 'Male';
+
+                          // Caste / Social Category
+                          const caste = row['Caste'] || row['caste'] || (rawCat && !['M', 'F', 'm', 'f'].includes(rawCat) ? rawCat : 'GEN');
+                          
+                          const whatsapp = row['Whatsup Mob. No.'] || row['Whatsup Mob No'] || row['Whatsup Mob.'] || row['WhatsApp No'] || row['mobileNumber'] || row['Mobile'] || '-';
+                          const otherMob = row['Other Mob. No.'] || row['Other Mob No'] || row['Other Mob.'] || row['alternateMobile'] || row['Parents Contact'] || '-';
+                          const session = importSession === 'custom' ? customImportSession : (row['Academic Session'] || row['Session'] || importSession);
+
+                          return (
+                            <tr key={i} className="hover:bg-warm-50 dark:hover:bg-darkbg-base/70 transition-colors">
+                              <td className="px-2.5 py-1.5 text-center text-slate-400 font-mono text-[11px]">{sNo}</td>
+                              <td className="px-2.5 py-1.5 font-mono font-bold text-slate-700 dark:text-slate-300">{acNo}</td>
+                              <td className="px-2.5 py-1.5 font-mono font-bold text-brand-600 dark:text-brand-400 whitespace-nowrap">{regNo}</td>
+                              <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">{name}</td>
+                              <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap">{father}</td>
+                              <td className="px-3 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">{mother}</td>
+                              <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${genderDisplay.includes('F') ? 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'}`}>
+                                  {genderDisplay}
+                                </span>
+                              </td>
+                              <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                  {caste}
+                                </span>
+                              </td>
+                              <td className="px-3 py-1.5 font-mono text-emerald-700 dark:text-emerald-400 font-semibold">{whatsapp}</td>
+                              <td className="px-3 py-1.5 font-mono text-slate-600 dark:text-slate-400">{otherMob}</td>
+                              <td className="px-2.5 py-1.5 text-center font-bold font-mono text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{session}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

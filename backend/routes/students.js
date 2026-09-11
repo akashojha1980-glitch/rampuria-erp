@@ -835,7 +835,7 @@ router.post('/bulk-import', protect, async (req, res) => {
       const rowNum = i + 1;
 
       try {
-        const fullName = getVal(row, ['fullName', 'Full Name', 'Student Name', 'Candidate Name', 'name', 'Name', 'STUDENT NAME', 'StudentName', 'नाम', 'छात्र का नाम']);
+        const fullName = getVal(row, ['Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name', 'STUDENT NAME', 'StudentName', 'नाम', 'छात्र का नाम']);
         if (!fullName) {
           errors.push({ row: rowNum, error: 'Student Name is missing in this row' });
           continue;
@@ -846,11 +846,20 @@ router.post('/bulk-import', protect, async (req, res) => {
         const academicYear = getVal(row, ['academicYear', 'Academic Year', 'year', 'Year', 'Current Year', 'वर्ष'], defaultYear);
         const semester = getVal(row, ['semester', 'Semester', 'Current Semester', 'Term', 'सेमेस्टर'], defaultSemester);
 
-        let mobileNumber = getVal(row, ['mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल'], '0000000000');
-        // Clean mobile number (keep digits)
-        mobileNumber = mobileNumber.replace(/[^0-9]/g, '');
+        // Extract Mobile numbers
+        const rawWhatsApp = getVal(row, ['Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'WhatsApp', 'Whats App No', 'Whatsup']);
+        const rawOtherMob = getVal(row, ['Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 'Other Mobile', 'Alternate Mobile', 'alternateMobile', 'Parents Contact', 'Parent Mobile']);
+        let primaryMobile = getVal(row, ['mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Mobile No.', 'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल']);
+
+        if (!primaryMobile) {
+          primaryMobile = rawWhatsApp || rawOtherMob || '0000000000';
+        }
+        let mobileNumber = String(primaryMobile).replace(/[^0-9]/g, '');
         if (mobileNumber.length < 10) mobileNumber = mobileNumber.padEnd(10, '0');
         if (mobileNumber.length > 10) mobileNumber = mobileNumber.slice(-10);
+
+        const whatsAppNo = String(rawWhatsApp || mobileNumber).replace(/[^0-9]/g, '');
+        const alternateMobile = String(rawOtherMob || '').replace(/[^0-9]/g, '');
 
         let rawEmail = getVal(row, ['email', 'Email', 'Email ID', 'EMAIL']);
         if (!rawEmail || !rawEmail.includes('@')) {
@@ -861,8 +870,8 @@ router.post('/bulk-import', protect, async (req, res) => {
         const emailExists = await Student.findOne({ where: { email: rawEmail } });
         const cleanEmail = emailExists ? `student_${Date.now()}_${i}_${Math.floor(Math.random()*1000)}@bjsrampuria.edu.in` : rawEmail;
 
-        // Registration ID: use if provided, else auto-generate sequentially
-        let registrationId = getVal(row, ['registrationId', 'Registration ID', 'regNo', 'Reg No', 'RegNo', 'Roll No', 'Enrollment No', 'Form No']);
+        // Registration ID: check 'Registration No.', 'Registration No', 'Reg No', etc.
+        let registrationId = getVal(row, ['Registration No.', 'Registration No', 'Registration ID', 'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No', 'Form No']);
         if (registrationId) {
           const idExists = await Student.findOne({ where: { registrationId } });
           if (idExists) {
@@ -872,24 +881,35 @@ router.post('/bulk-import', protect, async (req, res) => {
           registrationId = formatRegId(currentRegNum++, config, academicSession);
         }
 
-        // Gender Normalization
-        let rawGender = getVal(row, ['gender', 'Gender', 'Sex', 'SEX', 'लिंग'], 'Male');
+        // Student Account Number (Ac. No. in Rampuria sheets)
+        const studentAccNo = getVal(row, ['Ac. No.', 'Ac. No', 'Ac No.', 'Ac No', 'Ac.No.', 'Ac.No', 'studentAccNo', 'Student Acc No', 'Account No']);
+
+        // Sr No from sheet if present
+        const sheetSrNo = parseInt(getVal(row, ['S.No', 'S.No.', 'S. No.', 'S. No', 'Sr No', 'Sr. No.', 'Sr.No.', 'srNo', 'SNo']));
+
+        // Gender & Category Normalization (In Rampuria sheets, Category column is M/F and Caste column is OBC/GEN/SC/ST)
+        let rawGender = getVal(row, ['gender', 'Gender', 'Sex', 'SEX', 'लिंग']);
+        const rawCategoryCol = getVal(row, ['Category', 'category']);
+        const rawCasteCol = getVal(row, ['Caste', 'caste', 'Cast', 'Social Category', 'वर्ग']);
+
+        if (!rawGender && /^(m|f|male|female|other)$/i.test(rawCategoryCol)) {
+          rawGender = rawCategoryCol;
+        }
         let gender = 'Male';
         if (/f|female|महिला/i.test(rawGender)) gender = 'Female';
         else if (/trans|other/i.test(rawGender)) gender = 'Other';
 
-        // Category Normalization
-        let rawCat = getVal(row, ['category', 'Category', 'Caste', 'Social Category', 'वर्ग'], 'General');
         let category = 'General';
-        if (/obc/i.test(rawCat)) category = 'OBC';
-        else if (/sc/i.test(rawCat)) category = 'SC';
-        else if (/st/i.test(rawCat)) category = 'ST';
-        else if (/ews/i.test(rawCat)) category = 'EWS';
-        else if (/mbc/i.test(rawCat)) category = 'MBC';
+        const catTarget = rawCasteCol || (rawCategoryCol && !/^(m|f)$/i.test(rawCategoryCol) ? rawCategoryCol : '');
+        if (/obc/i.test(catTarget)) category = 'OBC';
+        else if (/sc/i.test(catTarget)) category = 'SC';
+        else if (/st/i.test(catTarget)) category = 'ST';
+        else if (/ews/i.test(catTarget)) category = 'EWS';
+        else if (/mbc/i.test(catTarget)) category = 'MBC';
+        else if (/gen/i.test(catTarget)) category = 'General';
 
         // Date of Birth
         let dob = getVal(row, ['dateOfBirth', 'DOB', 'Date of Birth', 'Birth Date', 'dob', 'D.O.B', 'जन्म तिथि'], '2004-01-01');
-        // If Excel date was parsed as number or DD/MM/YYYY
         if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(dob)) {
           const parts = dob.split(/[\/\-]/);
           const yyyy = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
@@ -897,13 +917,13 @@ router.post('/bulk-import', protect, async (req, res) => {
         }
 
         const newStudent = await Student.create({
-          srNo: currentSrNo++,
+          srNo: !isNaN(sheetSrNo) && sheetSrNo > 0 ? sheetSrNo : currentSrNo++,
           registrationId,
           fullName,
-          fatherName: getVal(row, ['fatherName', "Father's Name", 'Father Name', 'FATHER_NAME', 'FATHER NAME', 'Father', 'पिता का नाम']),
-          motherName: getVal(row, ['motherName', "Mother's Name", 'Mother Name', 'MOTHER_NAME', 'MOTHER NAME', 'Mother', 'माता का नाम']),
+          fatherName: getVal(row, ["Father's Name", 'Father Name', 'Fathers Name', 'FATHER_NAME', 'FATHER NAME', 'fatherName', 'Father', 'पिता का नाम']),
+          motherName: getVal(row, ['Mothers Name', "Mother's Name", 'Mother Name', 'MOTHER_NAME', 'MOTHER NAME', 'motherName', 'Mother', 'माता का नाम']),
           mobileNumber,
-          alternateMobile: getVal(row, ['alternateMobile', 'Alt Mobile', 'Alternate Mobile', 'Father Mobile', 'Parents Contact']),
+          alternateMobile,
           email: cleanEmail,
           gender,
           dateOfBirth: dob,
@@ -918,11 +938,11 @@ router.post('/bulk-import', protect, async (req, res) => {
           semester,
           admissionBase: getVal(row, ['admissionBase', 'Admission Base', 'Base'], 'UG'),
           formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No']),
-          studentAccNo: getVal(row, ['studentAccNo', 'Student Acc No', 'Account No']),
+          studentAccNo,
           medium: getVal(row, ['medium', 'Medium', 'माध्यम'], 'Hindi'),
           permanentAddress: getVal(row, ['permanentAddress', 'Permanent Address', 'address', 'Address']),
-          parentsContact: getVal(row, ['parentsContact', 'Parents Contact', 'alternateMobile']),
-          whatsAppNo: getVal(row, ['whatsAppNo', 'WhatsApp No', 'WhatsApp', 'mobileNumber']),
+          parentsContact: alternateMobile || getVal(row, ['parentsContact', 'Parents Contact']),
+          whatsAppNo,
           aadharNo: getVal(row, ['aadharNo', 'Aadhar No', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
           yearlyIncomeFather: getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income']),
           yearlyIncomeMother: getVal(row, ['yearlyIncomeMother', 'Mother Income']),
