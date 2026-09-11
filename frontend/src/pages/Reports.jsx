@@ -866,15 +866,17 @@ const Reports = () => {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
-                      <th className="py-3 px-3 text-center w-12">S.No.</th>
+                      <th className="py-3 px-3 text-center w-12">Sr. No.</th>
                       <th className="py-3 px-3">Voucher / Rec. No</th>
                       <th className="py-3 px-3">Date</th>
                       <th className="py-3 px-4">Account / Particulars</th>
                       <th className="py-3 px-3">Ref / Roll No</th>
-                      <th className="py-3 px-3 text-center">Mode</th>
+                      <th className="py-3 px-3 text-center">Type</th>
+                      <th className="py-3 px-3 text-center">Payment Mode</th>
                       <th className="py-3 px-3 text-right text-emerald-600">Credit (₹ In)</th>
                       <th className="py-3 px-3 text-right text-rose-600">Debit (₹ Out)</th>
-                      <th className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">Running Bal (₹)</th>
+                      <th className="py-3 px-3 text-right font-bold text-slate-900 dark:text-slate-100">Balance (₹)</th>
+                      <th className="py-3 px-3 text-center">Handled By</th>
                       <th className="py-3 px-3 text-center no-print">Action</th>
                     </tr>
                   </thead>
@@ -897,6 +899,15 @@ const Reports = () => {
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{row.refNo || '-'}</td>
                         <td className="py-3 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            row.transactionType === 'Credit' 
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' 
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                          }`}>
+                            {row.transactionType === 'Credit' ? 'Receipt (Inflow)' : 'Payment (Outflow)'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-center">
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300">
                             {row.paymentMode}
                           </span>
@@ -910,12 +921,15 @@ const Reports = () => {
                         <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
                           ₹{row.runningBalance.toLocaleString('en-IN')}/-
                         </td>
+                        <td className="py-3 px-3 text-center font-semibold text-[11px] text-slate-600 dark:text-slate-400">
+                          {row.handledBy || 'Accountant'}
+                        </td>
                         <td className="py-3 px-3 text-center no-print">
                           {row.sourceType === 'FEE_PAYMENT' ? (
                             <button
                               onClick={() => handlePrintReceiptClick(row.receiptData)}
                               className="p-1.5 hover:bg-brand-50 text-brand-600 dark:text-brand-400 rounded-lg transition-all"
-                              title="Print Fee Receipt"
+                              title="Print Official Fee Receipt"
                             >
                               <Printer className="w-3.5 h-3.5" />
                             </button>
@@ -928,7 +942,7 @@ const Reports = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-warm-100/70 dark:bg-darkbg-base/90 font-black text-xs border-t-2 border-slate-300 dark:border-darkbg-border">
-                      <td colSpan="6" className="py-3 px-4 text-right uppercase text-slate-700 dark:text-slate-300">
+                      <td colSpan="7" className="py-3 px-4 text-right uppercase text-slate-700 dark:text-slate-300">
                         Period Net Summary & Final Closing Balance:
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">
@@ -940,7 +954,7 @@ const Reports = () => {
                       <td className="py-3 px-3 text-right font-mono text-brand-700 dark:text-brand-300">
                         ₹{(dayBookData.summary.closingBalance || 0).toLocaleString('en-IN')}/-
                       </td>
-                      <td className="no-print"></td>
+                      <td colSpan="2" className="no-print"></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -972,7 +986,7 @@ const Reports = () => {
 
           <div className="bg-white dark:bg-darkbg-surface rounded-2xl border border-warm-200/50 dark:border-darkbg-border shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-warm-200/50 dark:border-darkbg-border">
-              <h3 className="text-sm font-bold text-warm-900 dark:text-slate-100">Itemized Collection Register</h3>
+              <h3 className="text-sm font-bold text-warm-900 dark:text-slate-100">Daily / Date-Wise Collection Report</h3>
               <p className="text-xs text-warm-700 dark:text-slate-400">Audit-ready receipt log with direct print action</p>
             </div>
 
@@ -990,14 +1004,15 @@ const Reports = () => {
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-3 text-center">S.No.</th>
-                      <th className="py-3 px-3">Receipt No</th>
+                      <th className="py-3 px-3">Receipt No.</th>
                       <th className="py-3 px-3">Date</th>
                       <th className="py-3 px-3">Student Name</th>
-                      <th className="py-3 px-3">Scholar No</th>
-                      <th className="py-3 px-3">Course</th>
+                      <th className="py-3 px-3">Roll No. / Scholar No.</th>
+                      <th className="py-3 px-3">Course & Semester</th>
                       <th className="py-3 px-3">Fee Head</th>
-                      <th className="py-3 px-3 text-center">Mode</th>
-                      <th className="py-3 px-3 text-right">Paid (₹)</th>
+                      <th className="py-3 px-3 text-center">Payment Mode</th>
+                      <th className="py-3 px-3">Transaction ID / UTR</th>
+                      <th className="py-3 px-3 text-right">Paid Amount (₹)</th>
                       <th className="py-3 px-3 text-center no-print">Action</th>
                     </tr>
                   </thead>
@@ -1012,13 +1027,17 @@ const Reports = () => {
                           <span className="text-[10px] text-slate-500">S/D/O {row.student?.fatherName || 'N/A'}</span>
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{row.student?.registrationId || row.student?.srNo || '-'}</td>
-                        <td className="py-3 px-3">{getCourseBadge(row.student?.courseApplied)}</td>
+                        <td className="py-3 px-3">
+                          {getCourseBadge(row.student?.courseApplied)}
+                          <span className="text-[10px] text-slate-500 block mt-0.5">{row.student?.academicYear || '1st Year'} ({row.student?.semester || 'Annual'})</span>
+                        </td>
                         <td className="py-3 px-3 font-semibold text-slate-700 dark:text-slate-300">{row.feeHead}</td>
                         <td className="py-3 px-3 text-center">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300">
                             {row.paymentMode}
                           </span>
                         </td>
+                        <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">{row.transactionNo || row.transactionRef || '-'}</td>
                         <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100">
                           ₹{(Number(row.amountPaid) || 0).toLocaleString('en-IN')}/-
                         </td>
@@ -1028,7 +1047,7 @@ const Reports = () => {
                             className="px-2 py-1 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-lg font-bold text-[11px] hover:bg-brand-100 transition-all flex items-center space-x-1 mx-auto"
                           >
                             <Printer className="w-3 h-3" />
-                            <span>Print</span>
+                            <span>Print Receipt</span>
                           </button>
                         </td>
                       </tr>
