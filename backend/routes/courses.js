@@ -14,6 +14,60 @@ const mapId = (instance) => {
 // Official Prospectus Fee Structure (Page 17 Master Data)
 const PROSPECTUS_FEE_STRUCTURES = [
   {
+    name: 'B.A. L.L.B. Integrated',
+    code: 'BA-LLB',
+    duration: '5 Years',
+    totalSeats: 120,
+    cutoffMarks: 45,
+    schemeType: 'Semester Scheme',
+    academicYear: '1st Year',
+    semester: 'I & II Semester',
+    firstInstallment: 16000,
+    firstInstallmentDesc: 'at the time of Admission',
+    secondInstallment: 9000,
+    secondInstallmentDesc: 'at the time of Exam Form',
+    totalFee: 25000,
+    cautionMoney: 300,
+    provisionalPromotionFee: 300,
+    isActive: true
+  },
+  {
+    name: 'Bachelor of Laws (L.L.B.)',
+    code: 'LLB',
+    duration: '3 Years',
+    totalSeats: 240,
+    cutoffMarks: 45,
+    schemeType: 'Semester Scheme',
+    academicYear: '1st Year',
+    semester: 'I & II Semester',
+    firstInstallment: 16000,
+    firstInstallmentDesc: 'at the time of Admission',
+    secondInstallment: 9000,
+    secondInstallmentDesc: 'at the time of Exam Form of I Semester',
+    totalFee: 25000,
+    cautionMoney: 300,
+    provisionalPromotionFee: 300,
+    isActive: true
+  },
+  {
+    name: 'Master of Laws (L.L.M.)',
+    code: 'LLM',
+    duration: '2 Years',
+    totalSeats: 40,
+    cutoffMarks: 50,
+    schemeType: 'Post Graduate (Part - I)',
+    academicYear: '1st Year',
+    semester: 'I & II Semester',
+    firstInstallment: 16500,
+    firstInstallmentDesc: 'First Installment (at Admission)',
+    secondInstallment: 8500,
+    secondInstallmentDesc: 'Second Installment (at Exam Form)',
+    totalFee: 25000,
+    cautionMoney: 300,
+    provisionalPromotionFee: 300,
+    isActive: true
+  },
+  {
     name: 'LL.B. I & II Semester',
     code: 'LLB-SEM1-2',
     duration: '1 Year (Sem I & II)',
@@ -141,11 +195,52 @@ const PROSPECTUS_FEE_STRUCTURES = [
   }
 ];
 
-// Helper: Seed Default Courses & Fees if empty
+// Helper: Seed Default Courses & Fees if empty or if 0 fee exists
 async function seedDefaultCoursesIfEmpty() {
   const count = await Course.count();
   if (count === 0) {
     await Course.bulkCreate(PROSPECTUS_FEE_STRUCTURES);
+    return;
+  }
+  // Auto-fill existing courses that have zero or empty fees
+  const existingCourses = await Course.findAll();
+  for (const c of existingCourses) {
+    if (!c.totalFee || Number(c.totalFee) === 0) {
+      const codeUpper = (c.code || '').toUpperCase();
+      const nameUpper = (c.name || '').toUpperCase();
+      if (codeUpper.includes('LLM') || nameUpper.includes('LL.M') || nameUpper.includes('MASTER OF LAWS')) {
+        await c.update({
+          firstInstallment: 16500,
+          firstInstallmentDesc: 'First Installment (at Admission)',
+          secondInstallment: 8500,
+          secondInstallmentDesc: 'Second Installment (at Exam Form)',
+          totalFee: 25000,
+          cautionMoney: 300,
+          provisionalPromotionFee: 300
+        });
+      } else if (codeUpper.includes('DIPLOMA') || codeUpper.includes('PGD') || nameUpper.includes('PGD')) {
+        await c.update({
+          firstInstallment: 13500,
+          firstInstallmentDesc: 'First Installment (at Admission)',
+          secondInstallment: 7500,
+          secondInstallmentDesc: 'Second Installment (at Exam Form)',
+          totalFee: 21000,
+          cautionMoney: 300,
+          provisionalPromotionFee: 0
+        });
+      } else {
+        // BA-LLB, LLB, General Law
+        await c.update({
+          firstInstallment: 16000,
+          firstInstallmentDesc: 'at the time of Admission',
+          secondInstallment: 9000,
+          secondInstallmentDesc: 'at the time of Exam Form',
+          totalFee: 25000,
+          cautionMoney: 300,
+          provisionalPromotionFee: 300
+        });
+      }
+    }
   }
 }
 
