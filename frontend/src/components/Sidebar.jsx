@@ -36,12 +36,17 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
     { name: 'Reports Panel', path: '/reports', icon: <BarChart3 className="w-5 h-5" />, key: 'reports' },
   ];
 
+  const isSuperAdmin = 
+    admin?.role?.toLowerCase() === 'superadmin' || 
+    admin?.role?.toLowerCase() === 'admin' || 
+    admin?.username === 'admin';
+
   const navItems = allNavItems.filter(item => {
-    if (admin?.role === 'SuperAdmin') return true;
+    if (isSuperAdmin) return true;
     return admin?.permissions?.includes(item.key);
   });
 
-  if (admin?.role === 'SuperAdmin') {
+  if (isSuperAdmin || admin?.permissions?.includes('users')) {
     navItems.push({
       name: 'Staff Access',
       path: '/users',
@@ -52,7 +57,7 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
       name: 'Database & LAN',
       path: '/database-settings',
       icon: <Database className="w-5 h-5" />,
-      key: 'users'
+      key: 'database-settings'
     });
   }
 
