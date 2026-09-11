@@ -1,6 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const os = require('os');
+const { Op } = require('sequelize');
 const DocSetting = require('../models/DocSetting');
+const Student = require('../models/Student');
+const FeePayment = require('../models/FeePayment');
+const Expense = require('../models/Expense');
+const Book = require('../models/Book');
+const BookIssue = require('../models/BookIssue');
+const Course = require('../models/Course');
+const AcademicSession = require('../models/AcademicSession');
+const Result = require('../models/Result');
+const Admin = require('../models/Admin');
+const AppSetting = require('../models/AppSetting');
 const { protect } = require('../middleware/auth');
 
 const mapId = (instance) => {
@@ -270,7 +282,378 @@ router.post('/reg-number/renumber-existing', protect, async (req, res) => {
   }
 });
 
+// @desc    Get live system stats and LAN network status
+// @route   GET /api/settings/system-status
+// @access  Private
+router.get('/system-status', protect, async (req, res) => {
+  try {
+    const studentCount = await Student.count();
+    const feeCount = await FeePayment.count();
+    const expenseCount = await Expense.count();
+    const bookCount = await Book.count();
+    const bookIssueCount = await BookIssue.count();
+    const courseCount = await Course.count();
+    const sessionCount = await AcademicSession.count();
+    const adminCount = await Admin.count();
+
+    // Get Local IP addresses for LAN network connection
+    const interfaces = os.networkInterfaces();
+    const lanIps = [];
+    for (const ifName in interfaces) {
+      for (const iface of interfaces[ifName]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          lanIps.push({
+            interface: ifName,
+            address: iface.address
+          });
+        }
+      }
+    }
+
+    const port = process.env.PORT || 5000;
+    const autoBackupSetting = await AppSetting.findOne({ where: { key: 'auto_backup_config' } });
+    const autoBackup = autoBackupSetting ? JSON.parse(autoBackupSetting.value) : { enabled: true, frequency: 'Daily', lastBackup: new Date().toISOString() };
+
+    res.json({
+      counts: {
+        students: studentCount,
+        feePayments: feeCount,
+        expenses: expenseCount,
+        books: bookCount,
+        bookIssues: bookIssueCount,
+        courses: courseCount,
+        sessions: sessionCount,
+        admins: adminCount
+      },
+      network: {
+        hostname: os.hostname(),
+        platform: os.platform(),
+        arch: os.arch(),
+        uptime: Math.round(os.uptime()),
+        lanIps,
+        port,
+        primaryLanUrl: lanIps.length > 0 ? `http://${lanIps[0].address}:${port}` : `http://localhost:${port}`
+      },
+      autoBackup
+    });
+  } catch (error) {
+    console.error('[System Status] Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Download full database backup snapshot as JSON
+// @route   GET /api/settings/backup/download
+// @access  Private
+router.get('/backup/download', protect, async (req, res) => {
+  try {
+    const students = await Student.findAll();
+    const feePayments = await FeePayment.findAll();
+    const expenses = await Expense.findAll();
+    const books = await Book.findAll();
+    const bookIssues = await BookIssue.findAll();
+    const courses = await Course.findAll();
+    const sessions = await AcademicSession.findAll();
+    const results = await Result.findAll();
+    const docSettings = await DocSetting.findAll();
+    const appSettings = await AppSetting.findAll();
+
+    const backupData = {
+      meta: {
+        app: 'B.J.S. Rampuria Jain Law College ERP',
+        version: '2.5.0',
+        exportedAt: new Date().toISOString(),
+        exportedBy: req.admin?.email || 'SuperAdmin',
+        counts: {
+          students: students.length,
+          feePayments: feePayments.length,
+          expenses: expenses.length,
+          books: books.length,
+          bookIssues: bookIssues.length,
+          courses: courses.length,
+          sessions: sessions.length,
+          results: results.length
+        }
+      },
+      data: {
+        students,
+        feePayments,
+        expenses,
+        books,
+        bookIssues,
+        courses,
+        sessions,
+        results,
+        docSettings,
+        appSettings
+      }
+    };
+
+    const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `rampuria_erp_backup_${dateStr}.json`;
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(backupData, null, 2));
+  } catch (error) {
+    console.error('[Backup Download] Error:', error);
+    res.status(500).json({ message: 'Error generating database backup: ' + error.message });
+  }
+});
+
+// @desc    Restore database from JSON backup snapshot
+// @route   POST /api/settings/backup/restore
+// @access  Private
+router.post('/backup/restore', protect, async (req, res) => {
+  try {
+    const { backupData } = req.body;
+    if (!backupData || !backupData.data) {
+      return res.status(400).json({ message: 'Invalid backup file format' });
+    }
+
+    const { data } = backupData;
+    let restoredCounts = {};
+
+    if (Array.isArray(data.students) && data.students.length > 0) {
+      for (const st of data.students) {
+        const plain = typeof st.get === 'function' ? st.get({ plain: true }) : st;
+        const exists = await Student.findByPk(plain.id);
+        if (exists) {
+          await exists.update(plain);
+        } else {
+          await Student.create(plain);
+        }
+      }
+      restoredCounts.students = data.students.length;
+    }
+
+    if (Array.isArray(data.feePayments) && data.feePayments.length > 0) {
+      for (const fp of data.feePayments) {
+        const plain = typeof fp.get === 'function' ? fp.get({ plain: true }) : fp;
+        const exists = await FeePayment.findByPk(plain.id);
+        if (exists) {
+          await exists.update(plain);
+        } else {
+          await FeePayment.create(plain);
+        }
+      }
+      restoredCounts.feePayments = data.feePayments.length;
+    }
+
+    if (Array.isArray(data.expenses) && data.expenses.length > 0) {
+      for (const exp of data.expenses) {
+        const plain = typeof exp.get === 'function' ? exp.get({ plain: true }) : exp;
+        const exists = await Expense.findByPk(plain.id);
+        if (exists) {
+          await exists.update(plain);
+        } else {
+          await Expense.create(plain);
+        }
+      }
+      restoredCounts.expenses = data.expenses.length;
+    }
+
+    if (Array.isArray(data.books) && data.books.length > 0) {
+      for (const bk of data.books) {
+        const plain = typeof bk.get === 'function' ? bk.get({ plain: true }) : bk;
+        const exists = await Book.findByPk(plain.id);
+        if (exists) {
+          await exists.update(plain);
+        } else {
+          await Book.create(plain);
+        }
+      }
+      restoredCounts.books = data.books.length;
+    }
+
+    if (Array.isArray(data.courses) && data.courses.length > 0) {
+      for (const cr of data.courses) {
+        const plain = typeof cr.get === 'function' ? cr.get({ plain: true }) : cr;
+        const exists = await Course.findByPk(plain.id);
+        if (exists) {
+          await exists.update(plain);
+        } else {
+          await Course.create(plain);
+        }
+      }
+      restoredCounts.courses = data.courses.length;
+    }
+
+    if (Array.isArray(data.sessions) && data.sessions.length > 0) {
+      for (const ses of data.sessions) {
+        const plain = typeof ses.get === 'function' ? ses.get({ plain: true }) : ses;
+        const exists = await AcademicSession.findOne({ where: { sessionName: plain.sessionName } });
+        if (!exists) {
+          await AcademicSession.create(plain);
+        }
+      }
+      restoredCounts.sessions = data.sessions.length;
+    }
+
+    res.json({
+      message: 'Database backup restored successfully',
+      restoredCounts
+    });
+  } catch (error) {
+    console.error('[Backup Restore] Error:', error);
+    res.status(500).json({ message: 'Error restoring backup: ' + error.message });
+  }
+});
+
+// @desc    Clear Dummy / Demo Test records only
+// @route   POST /api/settings/reset/demo-data
+// @access  Private
+router.post('/reset/demo-data', protect, async (req, res) => {
+  try {
+    const demoStudents = await Student.findAll({
+      where: {
+        [Op.or]: [
+          { email: { [Op.like]: '%@example.com%' } },
+          { email: { [Op.like]: '%@test.com%' } },
+          { fullName: { [Op.like]: 'Demo %' } },
+          { fullName: { [Op.like]: 'Test %' } },
+          { fullName: { [Op.like]: 'Dummy %' } },
+          { fullName: { [Op.in]: ['Aakash Sharma', 'Priya Choudhary', 'Rahul Verma', 'Sneha Patel', 'Amit Kumar', 'Pooja Singh', 'Vikram Rathore', 'Ananya Gupta', 'Deepak Joshi', 'Neha Sharma', 'Rohan Meena', 'Kavita Bishnoi'] } }
+        ]
+      }
+    });
+
+    const demoIds = demoStudents.map(s => s.id);
+    if (demoIds.length > 0) {
+      await FeePayment.destroy({ where: { studentId: { [Op.in]: demoIds } } });
+      await Result.destroy({ where: { studentId: { [Op.in]: demoIds } } });
+      await BookIssue.destroy({ where: { studentId: { [Op.in]: demoIds } } });
+      await Student.destroy({ where: { id: { [Op.in]: demoIds } } });
+    }
+
+    const deletedExpenses = await Expense.destroy({
+      where: {
+        [Op.or]: [
+          { voucherNo: { [Op.like]: '%DEMO%' } },
+          { remarks: { [Op.like]: '%Demo%' } },
+          { remarks: { [Op.like]: '%Sample%' } }
+        ]
+      }
+    });
+
+    res.json({
+      message: `Cleared ${demoStudents.length} demo student(s) and ${deletedExpenses} demo expense record(s). Real student list is intact.`,
+      clearedStudents: demoStudents.length,
+      clearedExpenses: deletedExpenses
+    });
+  } catch (error) {
+    console.error('[Reset Demo Data] Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Erase all students and related fees & results
+// @route   POST /api/settings/reset/students
+// @access  Private
+router.post('/reset/students', protect, async (req, res) => {
+  try {
+    const { confirmationCode } = req.body;
+    if (confirmationCode !== 'ERASE_ALL_STUDENTS') {
+      return res.status(400).json({ message: 'Invalid confirmation code. Please type "ERASE_ALL_STUDENTS"' });
+    }
+
+    const studentCount = await Student.count();
+    await FeePayment.destroy({ where: {} });
+    await Result.destroy({ where: {} });
+    await BookIssue.destroy({ where: {} });
+    await Student.destroy({ where: {} });
+
+    res.json({
+      message: `Successfully erased all ${studentCount} student registry records, fee payments, and results.`,
+      erasedCount: studentCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Reset Financial Books (Fee Receipts + Expenses / Day Book)
+// @route   POST /api/settings/reset/financials
+// @access  Private
+router.post('/reset/financials', protect, async (req, res) => {
+  try {
+    const { confirmationCode } = req.body;
+    if (confirmationCode !== 'RESET_FINANCIALS') {
+      return res.status(400).json({ message: 'Invalid confirmation code. Please type "RESET_FINANCIALS"' });
+    }
+
+    const feeCount = await FeePayment.count();
+    const expCount = await Expense.count();
+
+    await FeePayment.destroy({ where: {} });
+    await Expense.destroy({ where: {} });
+
+    res.json({
+      message: `Financial Books Reset: Erased ${feeCount} fee payments and ${expCount} expense vouchers. Day Book is now fresh.`,
+      erasedFees: feeCount,
+      erasedExpenses: expCount
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Factory Reset (Full Data Wipe)
+// @route   POST /api/settings/reset/factory
+// @access  Private
+router.post('/reset/factory', protect, async (req, res) => {
+  try {
+    const { confirmationCode } = req.body;
+    if (confirmationCode !== 'FACTORY_RESET') {
+      return res.status(400).json({ message: 'Invalid confirmation code. Please type "FACTORY_RESET"' });
+    }
+
+    await FeePayment.destroy({ where: {} });
+    await Expense.destroy({ where: {} });
+    await Result.destroy({ where: {} });
+    await BookIssue.destroy({ where: {} });
+    await Student.destroy({ where: {} });
+    await Book.destroy({ where: {} });
+
+    res.json({
+      message: 'Factory Reset Complete: System has been restored to clean state. SuperAdmin account is preserved.'
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Update Auto Backup Configuration
+// @route   PUT /api/settings/auto-backup
+// @access  Private
+router.put('/auto-backup', protect, async (req, res) => {
+  try {
+    const { enabled, frequency } = req.body;
+    const config = {
+      enabled: Boolean(enabled),
+      frequency: frequency || 'Daily',
+      updatedAt: new Date().toISOString()
+    };
+
+    let setting = await AppSetting.findOne({ where: { key: 'auto_backup_config' } });
+    if (!setting) {
+      setting = await AppSetting.create({
+        key: 'auto_backup_config',
+        value: JSON.stringify(config),
+        description: 'Auto Backup Configuration'
+      });
+    } else {
+      await setting.update({ value: JSON.stringify(config) });
+    }
+
+    res.json({ message: 'Auto backup schedule updated successfully', config });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
 module.exports.getRegConfig = getRegConfig;
 module.exports.formatRegId = formatRegId;
+
 

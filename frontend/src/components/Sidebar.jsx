@@ -2,7 +2,8 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserPlus, FileCheck, Award, 
-  LogOut, Sun, Moon, GraduationCap, CreditCard, BookOpen, Users, BarChart3, FileText, X
+  LogOut, Sun, Moon, GraduationCap, CreditCard, BookOpen, Users, BarChart3, FileText, X,
+  Database
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -45,6 +46,12 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
       name: 'Staff Access',
       path: '/users',
       icon: <Users className="w-5 h-5" />,
+      key: 'users'
+    });
+    navItems.push({
+      name: 'Database & LAN',
+      path: '/database-settings',
+      icon: <Database className="w-5 h-5" />,
       key: 'users'
     });
   }
