@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, FileClock, ShieldCheck, CheckSquare, 
-  ArrowUpRight, UserPlus, FileCheck, Award 
+  ArrowUpRight, UserPlus, FileCheck, Award, Database, CreditCard
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -208,8 +208,40 @@ const Dashboard = () => {
 
             <div className="flex flex-col space-y-3 mt-4">
               <button 
+                onClick={() => navigate('/database-settings')}
+                className="flex items-center justify-between p-3.5 rounded-xl bg-purple-500/5 hover:bg-purple-500/10 border border-purple-500/30 text-warm-900 dark:text-slate-200 transition-all text-left group shadow-xs"
+              >
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-2.5 bg-purple-600 rounded-lg text-white shadow-sm">
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold leading-none text-purple-900 dark:text-purple-300">Database & LAN Hub</h4>
+                    <span className="text-[10px] text-warm-800/60 dark:text-slate-400 mt-1.5 inline-block">Backups, Erase Demo Data & Wi-Fi LAN</span>
+                  </div>
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
+
+              <button 
+                onClick={() => navigate('/fees')}
+                className="flex items-center justify-between p-3.5 rounded-xl hover:bg-warm-100/50 dark:hover:bg-darkbg-base/50 text-warm-900 dark:text-slate-200 transition-all text-left border border-warm-200/50 dark:border-darkbg-border group"
+              >
+                <div className="flex items-center space-x-3.5">
+                  <div className="p-2.5 bg-emerald-500/10 rounded-lg text-emerald-600 dark:text-emerald-400">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold leading-none">Day Book & Fees Console</h4>
+                    <span className="text-[10px] text-warm-800/50 dark:text-slate-500 mt-1.5 inline-block">Inflow / Outflow & Receipts</span>
+                  </div>
+                </div>
+                <ArrowUpRight className="w-4 h-4 text-warm-800/40 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
+
+              <button 
                 onClick={() => navigate('/registration')}
-                className="flex items-center justify-between p-4 rounded-xl hover:bg-warm-100/50 dark:hover:bg-darkbg-base/50 text-warm-900 dark:text-slate-200 transition-all text-left border border-warm-200/50 dark:border-darkbg-border group"
+                className="flex items-center justify-between p-3.5 rounded-xl hover:bg-warm-100/50 dark:hover:bg-darkbg-base/50 text-warm-900 dark:text-slate-200 transition-all text-left border border-warm-200/50 dark:border-darkbg-border group"
               >
                 <div className="flex items-center space-x-3.5">
                   <div className="p-2.5 bg-brand-500/10 rounded-lg text-brand-600 dark:text-brand-300">
@@ -217,7 +249,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold leading-none">Register Student</h4>
-                    <span className="text-[10px] text-warm-800/50 dark:text-slate-500 mt-1.5 inline-block">Create enquiry forms</span>
+                    <span className="text-[10px] text-warm-800/50 dark:text-slate-500 mt-1.5 inline-block">Excel Import & Direct Form</span>
                   </div>
                 </div>
                 <ArrowUpRight className="w-4 h-4 text-warm-800/40 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -225,7 +257,7 @@ const Dashboard = () => {
 
               <button 
                 onClick={() => navigate('/verification')}
-                className="flex items-center justify-between p-4 rounded-xl hover:bg-warm-100/50 dark:hover:bg-darkbg-base/50 text-warm-900 dark:text-slate-200 transition-all text-left border border-warm-200/50 dark:border-darkbg-border group"
+                className="flex items-center justify-between p-3.5 rounded-xl hover:bg-warm-100/50 dark:hover:bg-darkbg-base/50 text-warm-900 dark:text-slate-200 transition-all text-left border border-warm-200/50 dark:border-darkbg-border group"
               >
                 <div className="flex items-center space-x-3.5">
                   <div className="p-2.5 bg-amber-500/10 rounded-lg text-amber-600 dark:text-amber-400">
@@ -233,7 +265,7 @@ const Dashboard = () => {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold leading-none">Verify Documents</h4>
-                    <span className="text-[10px] text-warm-800/50 dark:text-slate-500 mt-1.5 inline-block">Review attachments</span>
+                    <span className="text-[10px] text-warm-800/50 dark:text-slate-500 mt-1.5 inline-block">Review attachments & Verify</span>
                   </div>
                 </div>
                 <ArrowUpRight className="w-4 h-4 text-warm-800/40 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />

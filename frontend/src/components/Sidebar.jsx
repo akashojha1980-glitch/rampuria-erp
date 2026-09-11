@@ -34,32 +34,21 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
     { name: 'Fees Console', path: '/fees', icon: <CreditCard className="w-5 h-5" />, key: 'fees' },
     { name: 'Library Console', path: '/library', icon: <BookOpen className="w-5 h-5" />, key: 'library' },
     { name: 'Reports Panel', path: '/reports', icon: <BarChart3 className="w-5 h-5" />, key: 'reports' },
+    { name: 'Staff Access', path: '/users', icon: <Users className="w-5 h-5" />, key: 'users' },
+    { name: 'Database & LAN', path: '/database-settings', icon: <Database className="w-5 h-5" />, key: 'database' },
   ];
 
   const isSuperAdmin = 
+    !admin?.role ||
     admin?.role?.toLowerCase() === 'superadmin' || 
     admin?.role?.toLowerCase() === 'admin' || 
     admin?.username === 'admin';
 
   const navItems = allNavItems.filter(item => {
     if (isSuperAdmin) return true;
+    if (item.key === 'dashboard' || item.key === 'database') return true;
     return admin?.permissions?.includes(item.key);
   });
-
-  if (isSuperAdmin || admin?.permissions?.includes('users')) {
-    navItems.push({
-      name: 'Staff Access',
-      path: '/users',
-      icon: <Users className="w-5 h-5" />,
-      key: 'users'
-    });
-    navItems.push({
-      name: 'Database & LAN',
-      path: '/database-settings',
-      icon: <Database className="w-5 h-5" />,
-      key: 'database-settings'
-    });
-  }
 
   return (
     <>
