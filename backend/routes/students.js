@@ -11,8 +11,23 @@ const BookIssue = require('../models/BookIssue');
 const Book = require('../models/Book');
 const Result = require('../models/Result');
 const AppSetting = require('../models/AppSetting');
+const AcademicSession = require('../models/AcademicSession');
 const { getRegConfig, formatRegId } = require('./settings');
 const { protect } = require('../middleware/auth');
+
+const normalizeSession = (s) => {
+  if (!s) return '2025-26';
+  const str = String(s).trim();
+  const match = str.match(/(\d{2,4})\s*[-/_\s]\s*(\d{2,4})/);
+  if (match) {
+    let y1 = match[1];
+    let y2 = match[2];
+    if (y1.length === 2) y1 = `20${y1}`;
+    if (y2.length === 4) y2 = y2.slice(2);
+    return `${y1}-${y2}`;
+  }
+  return str;
+};
 
 const mapId = (instance) => {
   if (!instance) return null;
@@ -206,7 +221,27 @@ router.get('/', protect, async (req, res) => {
   const where = {};
 
   if (session && session !== 'all' && session !== 'All' && session !== 'All Sessions') {
-    where.academicSession = session;
+    const norm = normalizeSession(session);
+    const short = norm.replace(/^20/, ''); // e.g. "24-25"
+    const long = norm.replace(/-(\d{2})$/, '-20$1'); // e.g. "2024-2025"
+    const spaceForm = norm.replace('-', ' '); // e.g. "2024 25"
+    const shortSpace = short.replace('-', ' '); // e.g. "24 25"
+    const slashForm = norm.replace('-', '/'); // e.g. "2024/25"
+    const shortSlash = short.replace('-', '/'); // e.g. "24/25"
+
+    where.academicSession = {
+      [Op.or]: [
+        session,
+        norm,
+        short,
+        long,
+        spaceForm,
+        shortSpace,
+        slashForm,
+        shortSlash,
+        { [Op.like]: `%${short}%` }
+      ]
+    };
   }
   if (course && course !== 'all') where.courseApplied = course;
   if (category && category !== 'all') where.category = category;
@@ -811,7 +846,17 @@ router.post('/bulk-import', protect, async (req, res) => {
       autoCreateFeePayment = true
     } = req.body;
 
-    const assignedSession = targetSession || defaultSession;
+    const assignedSession = normalizeSession(targetSession || defaultSession || '2025-26');
+
+    // Ensure target session is registered in AcademicSession master table
+    try {
+      const sessionExists = await AcademicSession.findOne({ where: { sessionName: assignedSession } });
+      if (!sessionExists) {
+        await AcademicSession.create({ sessionName: assignedSession, isActive: false });
+      }
+    } catch (e) {
+      console.warn('[BulkImport] Could not upsert session to master table:', e.message);
+    }
 
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({ message: 'No student data rows provided for import' });
@@ -862,7 +907,8 @@ router.post('/bulk-import', protect, async (req, res) => {
         }
 
         const courseApplied = getVal(row, ['courseApplied', 'Course Applied', 'course', 'Course', 'Class', 'Class/Course', 'Branch', 'कक्षा', 'पाठ्यक्रम'], defaultCourse);
-        const academicSession = assignedSession || getVal(row, ['academicSession', 'Academic Session', 'session', 'Session', 'Batch', 'सत्र'], defaultSession);
+        const rowSession = getVal(row, ['academicSession', 'Academic Session', 'session', 'Session', 'Batch', 'सत्र']);
+        const academicSession = assignedSession || (rowSession ? normalizeSession(rowSession) : '2025-26');
         const academicYear = getVal(row, ['academicYear', 'Academic Year', 'year', 'Year', 'Current Year', 'वर्ष'], defaultYear);
         const semester = getVal(row, ['semester', 'Semester', 'Current Semester', 'Term', 'सेमेस्टर'], defaultSemester);
 

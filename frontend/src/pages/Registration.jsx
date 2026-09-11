@@ -15,7 +15,7 @@ import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
 
 const Registration = () => {
   const navigate = useNavigate();
-  const { activeSession, sessions } = useSession();
+  const { activeSession, setActiveSession, sessions, refreshSessions } = useSession();
   
   // Tabs: 'list' or 'form'
   const [activeTab, setActiveTab] = useState('list');
@@ -412,6 +412,15 @@ const Registration = () => {
       if (res.ok) {
         setImportResult(data);
         showToastMsg(`Bulk import complete: ${data.count} students registered in ${selectedSession}!`);
+        // Automatically switch filter and active session to this imported session
+        setSessionFilter(selectedSession);
+        if (typeof setActiveSession === 'function') {
+          setActiveSession(selectedSession);
+        }
+        if (typeof refreshSessions === 'function') {
+          refreshSessions();
+        }
+        setPage(1);
         fetchStudents();
       } else {
         showToastMsg(data.message || 'Error during bulk import', 'error');
@@ -901,7 +910,13 @@ const Registration = () => {
                     className="px-3 py-2 rounded-lg border border-warm-200 dark:border-darkbg-border bg-warm-50/50 dark:bg-darkbg-base text-xs font-semibold outline-none text-warm-800 dark:text-slate-300"
                   >
                     <option value="All Sessions">All Sessions (All Students)</option>
-                    {sessions && sessions.filter(s => s !== 'All Sessions').map(s => (
+                    {Array.from(new Set([
+                      '2025-26',
+                      '2024-25',
+                      '2026-27',
+                      '2023-24',
+                      ...(sessions || []).filter(s => s !== 'All Sessions')
+                    ])).map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
