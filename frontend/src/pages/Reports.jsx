@@ -477,6 +477,30 @@ const Reports = () => {
     }
   };
 
+  const handleSeedDemoData = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      showToastMsg('Generating realistic Law College finance demo records...', 'info');
+      const res = await fetch('/api/reports/seed-demo-data', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToastMsg('✓ Sample Day Book, Fee Receipts, and Expense vouchers populated successfully!', 'success');
+        if (activeTab === 'day-book') fetchDayBook();
+        else if (activeTab === 'fees-posting') fetchPostingReport();
+        else if (activeTab === 'defaulters') fetchDefaulters();
+        else if (activeTab === 'head-summary') fetchHeadSummary();
+        else if (activeTab === 'expenses') fetchExpenses();
+      } else {
+        showToastMsg(data.message || 'Failed to seed demo data', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server error seeding data', 'error');
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -517,6 +541,15 @@ const Reports = () => {
         </div>
 
         <div className="flex items-center flex-wrap gap-2.5">
+          <button
+            onClick={handleSeedDemoData}
+            className="px-3.5 py-2.5 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800 rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5 active:scale-95"
+            title="Populate realistic dummy finance and day book entries"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Load Sample Demo Data</span>
+          </button>
+
           <button
             onClick={() => handleOpenExpenseModal(null)}
             className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-2 active:scale-95"

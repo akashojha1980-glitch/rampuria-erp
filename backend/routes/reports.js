@@ -765,4 +765,18 @@ router.get('/admissions', protect, async (req, res) => {
   }
 });
 
+// @desc    Seed or Re-populate Rich Demo Finance & Day Book Data
+// @route   POST /api/reports/seed-demo-data
+// @access  Private
+router.post('/seed-demo-data', protect, async (req, res) => {
+  try {
+    const seedData = require('../seed');
+    await seedData();
+    res.json({ message: 'Successfully seeded realistic Law College finance, fee payment, and expense records!' });
+  } catch (err) {
+    console.error('[Reports Seed API] error:', err.message);
+    res.status(500).json({ message: 'Error populating demo records' });
+  }
+});
+
 module.exports = router;
