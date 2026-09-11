@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Search, Plus, Filter, Download, ArrowLeft,
   ChevronLeft, ChevronRight, Edit2, Trash2, Eye, Calendar, TrendingUp,
-  FileSpreadsheet, Settings, Upload, CheckCircle2, AlertTriangle, X, RefreshCw
+  FileSpreadsheet, Settings, Upload, CheckCircle2, AlertTriangle, X, RefreshCw,
+  DollarSign
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
