@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, Search, ArrowUpRight, TrendingUp, 
   AlertCircle, DollarSign, Calendar, Eye, Filter,
-  Printer, FileText, ChevronLeft, ChevronRight, Settings
+  Printer, FileText, ChevronLeft, ChevronRight, Settings, Plus, BookOpen
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
+import PrintReceiptModal from '../components/PrintReceiptModal';
+import ExpenseModal from '../components/ExpenseModal';
 
 const getCourseBadge = (course) => {
   if (!course) return null;
@@ -41,6 +43,9 @@ const FeesConsole = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [showFeeSettings, setShowFeeSettings] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
   
   // Filters
   const [search, setSearch] = useState('');
@@ -58,6 +63,11 @@ const FeesConsole = () => {
 
   const showToastMsg = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  const handlePrintReceipt = (txn) => {
+    setSelectedReceipt(txn);
+    setShowPrintModal(true);
   };
 
   const fetchFeesData = async () => {
@@ -115,6 +125,23 @@ const FeesConsole = () => {
     <div className="flex flex-col space-y-8 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+      <PrintReceiptModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        payment={selectedReceipt}
+        student={selectedReceipt?.student}
+      />
+
+      <ExpenseModal
+        isOpen={showExpenseModal}
+        onClose={() => setShowExpenseModal(false)}
+        onExpenseSaved={() => {
+          showToastMsg('Expense recorded successfully!', 'success');
+          fetchFeesData();
+        }}
+        activeSession={sessionFilter}
+      />
+
       <FeeStructureSettingsModal
         isOpen={showFeeSettings}
         onClose={() => setShowFeeSettings(false)}
@@ -135,6 +162,22 @@ const FeesConsole = () => {
 
         {/* Action Controls & Status Filter Tab Pills */}
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => navigate('/reports')}
+            className="px-3 py-2 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm active:scale-95"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Day Book Ledger</span>
+          </button>
+
+          <button
+            onClick={() => setShowExpenseModal(true)}
+            className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shadow-sm active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Record Expense</span>
+          </button>
+
           <button
             onClick={() => setShowFeeSettings(true)}
             className="px-3.5 py-2 bg-white dark:bg-darkbg-surface hover:bg-warm-100/70 dark:hover:bg-darkbg-base border border-warm-200 dark:border-darkbg-border text-warm-900 dark:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 shadow-sm active:scale-95"
@@ -416,13 +459,22 @@ const FeesConsole = () => {
                         </td>
                         <td className="px-6 py-4">{new Date(txn.paymentDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => navigate(`/profile/${txn.studentId}`)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-500/10 transition-colors"
-                            title="View Student Dossier"
-                          >
-                            <Eye className="w-4.5 h-4.5" />
-                          </button>
+                          <div className="flex items-center justify-end space-x-1">
+                            <button
+                              onClick={() => handlePrintReceipt(txn)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10 transition-colors"
+                              title="Print Official Fee Receipt"
+                            >
+                              <Printer className="w-4.5 h-4.5" />
+                            </button>
+                            <button
+                              onClick={() => navigate(`/profile/${txn.studentId}`)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-500/10 transition-colors"
+                              title="View Student Dossier"
+                            >
+                              <Eye className="w-4.5 h-4.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

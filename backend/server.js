@@ -65,6 +65,7 @@ app.use('/api/students',  require('./routes/students'));
 app.use('/api/courses',   require('./routes/courses'));
 app.use('/api/allotment', require('./routes/allotment'));
 app.use('/api/fees',      require('./routes/fees'));
+app.use('/api/expenses',  require('./routes/expenses'));
 app.use('/api/library',   require('./routes/library'));
 app.use('/api/reports',   require('./routes/reports'));
 app.use('/api/sessions',  require('./routes/sessions'));
