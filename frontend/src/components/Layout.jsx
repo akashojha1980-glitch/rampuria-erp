@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import { useSession } from '../context/SessionContext';
 import { 
   Database, Clock, RefreshCw, GraduationCap, 
-  BookOpen, Scale, Scroll, PenTool, BookMarked, Calendar 
+  BookOpen, Scale, Scroll, PenTool, BookMarked, Calendar, Menu 
 } from 'lucide-react';
 
 const Layout = () => {
@@ -14,6 +14,7 @@ const Layout = () => {
   const [dbChecking, setDbChecking] = useState(false);
   const [localTime, setLocalTime] = useState(new Date());
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Update ticking time
   useEffect(() => {
@@ -57,10 +58,14 @@ const Layout = () => {
     switch (location.pathname) {
       case '/': return 'Dashboard Overview';
       case '/registration': return 'Student Registration Form';
+      case '/dossier': return 'Student 360 Dossier';
       case '/verification': return 'Document Verification Portal';
       case '/fees': return 'Fees Control & Cashflow Console';
       case '/promotion': return '1-Click Academic Promotion';
       case '/results': return 'Annual Examination & Results Console';
+      case '/reports': return 'Finance & Day Book Central Hub';
+      case '/library': return 'Law Library Management';
+      case '/users': return 'Staff & Security Access';
       default:
         if (location.pathname.startsWith('/profile/')) return 'Student Profile Summary';
         return 'ERP Console';
@@ -72,7 +77,7 @@ const Layout = () => {
       
       {/* ─── CUSTOM SOFT GLOW CURSOR TRAILER ─── */}
       <div 
-        className="fixed w-36 h-36 rounded-full pointer-events-none z-50 transition-transform duration-[400ms] ease-out -translate-x-1/2 -translate-y-1/2 opacity-40 dark:opacity-20 no-print"
+        className="fixed w-36 h-36 rounded-full pointer-events-none z-50 transition-transform duration-[400ms] ease-out -translate-x-1/2 -translate-y-1/2 opacity-40 dark:opacity-20 no-print hidden md:block"
         style={{
           left: `${cursorPos.x}px`,
           top: `${cursorPos.y}px`,
@@ -82,7 +87,7 @@ const Layout = () => {
       />
 
       {/* ─── DYNAMIC FLOATING BACKGROUND VECTORS (SVG) ─── */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.25] dark:opacity-[0.18] no-print">
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden opacity-[0.25] dark:opacity-[0.18] no-print hidden sm:block">
         {/* Floating BookOpen */}
         <div className="absolute top-[12%] left-[25%] animate-float-screen1 text-brand-500/80 dark:text-brand-500/60">
           <BookOpen size={90} strokeWidth={0.8} />
@@ -109,20 +114,51 @@ const Layout = () => {
         </div>
       </div>
 
-      {/* Sidebar Nav Dock */}
-      <Sidebar />
+      {/* Sidebar Nav Dock (with mobile drawer support) */}
+      <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
 
       {/* Main Content Area */}
-      <div className="flex-1 pl-[19rem] pr-8 py-8 min-h-screen flex flex-col space-y-8 relative z-10 print:pl-0 print:pr-0 print:py-0 print:space-y-0 print:m-0 print:block">
+      <div className="flex-1 w-full pl-0 md:pl-72 lg:pl-[19rem] px-3 sm:px-6 md:px-8 py-3 sm:py-6 md:py-8 min-h-screen flex flex-col space-y-4 md:space-y-8 relative z-10 print:pl-0 print:pr-0 print:py-0 print:space-y-0 print:m-0 print:block">
         
         {/* Top Header */}
-        <header className="classy-card px-8 py-5 flex items-center justify-between z-10 border border-warm-200/50 dark:border-darkbg-border no-print">
-          <div>
-            <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest leading-none">ERP System Control</span>
-            <h2 className="text-2xl font-serif font-semibold text-warm-900 dark:text-slate-100 leading-none mt-2">{getPageTitle()}</h2>
+        <header className="classy-card px-4 sm:px-6 md:px-8 py-3.5 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 z-10 border border-warm-200/50 dark:border-darkbg-border no-print">
+          <div className="flex items-center justify-between w-full sm:w-auto">
+            <div className="flex items-center space-x-3">
+              {/* Mobile Hamburger Menu Toggle Button */}
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="md:hidden p-2 rounded-xl bg-warm-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-200 hover:bg-warm-200 active:scale-95 transition-all shadow-sm"
+                aria-label="Open Navigation Menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <div>
+                <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest leading-none hidden sm:block">ERP System Control</span>
+                <h2 className="text-lg sm:text-2xl font-serif font-semibold text-warm-900 dark:text-slate-100 leading-tight sm:leading-none sm:mt-2">
+                  {getPageTitle()}
+                </h2>
+              </div>
+            </div>
+
+            {/* Mobile Session Switcher (on very small screens) */}
+            <div className="sm:hidden flex items-center space-x-1.5 bg-warm-100/80 dark:bg-darkbg-base px-2.5 py-1 rounded-full border border-warm-200 dark:border-darkbg-border">
+              <Calendar className="w-3 h-3 text-brand-500" />
+              <select
+                value={activeSession}
+                onChange={(e) => setActiveSession(e.target.value)}
+                className="bg-transparent text-[10px] font-bold text-brand-600 dark:text-brand-400 focus:outline-none"
+              >
+                {sessions.map(s => (
+                  <option key={s} value={s} className="bg-white dark:bg-darkbg-surface text-warm-900 dark:text-slate-100">
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-6">
+          <div className="hidden sm:flex items-center space-x-4 md:space-x-6">
             {/* Global Session Switcher Dropdown */}
             <div className="flex items-center space-x-2 bg-warm-100/60 dark:bg-darkbg-base px-3 py-1.5 rounded-full border border-warm-200/60 dark:border-darkbg-border">
               <Calendar className="w-3.5 h-3.5 text-brand-500" />
@@ -141,25 +177,26 @@ const Layout = () => {
             </div>
 
             {/* Live Local Clock */}
-            <div className="flex items-center space-x-2 text-xs font-medium text-warm-800/60 dark:text-slate-400">
+            <div className="hidden lg:flex items-center space-x-2 text-xs font-medium text-warm-800/60 dark:text-slate-400">
               <Clock className="w-4 h-4 text-brand-500" />
               <span>{localTime.toLocaleTimeString()} | {localTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
             </div>
 
-            <div className="h-4 w-px bg-warm-200 dark:bg-darkbg-border" />
+            <div className="hidden lg:block h-4 w-px bg-warm-200 dark:bg-darkbg-border" />
 
             {/* Offline/Online Local SQL Server status */}
             <button 
               onClick={checkDbStatus}
               disabled={dbChecking}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-full border text-[11px] font-medium transition-all duration-200 ${
+              className={`flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border text-[10px] sm:text-[11px] font-medium transition-all duration-200 ${
                 dbOnline 
                   ? 'bg-emerald-50/50 border-emerald-200/40 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
                   : 'bg-rose-50/50 border-rose-200/40 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20'
               }`}
             >
               <Database className={`w-3.5 h-3.5 ${dbOnline ? 'text-emerald-500' : 'text-rose-500'}`} />
-              <span>{dbOnline ? 'SQL Server: Connected' : 'Database: Disconnected'}</span>
+              <span className="hidden sm:inline">{dbOnline ? 'SQL Server: Connected' : 'Database: Disconnected'}</span>
+              <span className="sm:hidden">{dbOnline ? 'Connected' : 'Offline'}</span>
               <RefreshCw className={`w-3 h-3 text-slate-400 ${dbChecking ? 'animate-spin' : ''}`} />
             </button>
           </div>
@@ -179,7 +216,7 @@ const Layout = () => {
         )}
 
         {/* Dynamic Page Outlets */}
-        <main className="flex-1">
+        <main className="flex-1 w-full overflow-x-hidden">
           <Outlet />
         </main>
       </div>

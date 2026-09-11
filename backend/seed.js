@@ -7,8 +7,8 @@ const Book = require('./models/Book');
 const BookIssue = require('./models/BookIssue');
 const { Op } = require('sequelize');
 
-const seedData = async () => {
-  console.log('[Seeding] Starting comprehensive database seed check...');
+const seedData = async (force = false) => {
+  console.log(`[Seeding] Starting database seed check (force = ${force})...`);
 
   try {
     // 1. Seed Admin
@@ -264,7 +264,7 @@ const seedData = async () => {
 
     // 4. Seed Rich Fee Payments (Credits/Inflow)
     const feeCount = await FeePayment.count();
-    if (feeCount === 0 && students.length > 0) {
+    if ((feeCount === 0 || force) && students.length > 0) {
       console.log('[Seeding] Seeding realistic fee payments across multiple dates and payment modes...');
       
       const todayStr = new Date().toISOString().split('T')[0];
@@ -279,6 +279,7 @@ const seedData = async () => {
       const s3 = students[2] || students[0];
       const s4 = students[3] || students[0];
       const s5 = students[4] || students[0];
+      const prefix = force ? `F${Date.now().toString().slice(-4)}-` : 'REC-2026-';
 
       const demoPayments = [
         {
@@ -290,7 +291,7 @@ const seedData = async () => {
           amountPaid: 16000.0,
           amountDue: 9000.0,
           dueDate: '2026-11-15',
-          receiptNo: 'REC-2026-00101',
+          receiptNo: `${prefix}00101`,
           paymentDate: twoDaysAgoStr,
           paymentMode: 'Cash',
           transactionNo: '',
@@ -305,7 +306,7 @@ const seedData = async () => {
           amountPaid: 16000.0,
           amountDue: 9000.0,
           dueDate: '2026-11-15',
-          receiptNo: 'REC-2026-00102',
+          receiptNo: `${prefix}00102`,
           paymentDate: yesterdayStr,
           paymentMode: 'UPI',
           transactionNo: 'UPI/627491028472',
@@ -320,7 +321,7 @@ const seedData = async () => {
           amountPaid: 9000.0,
           amountDue: 0.0,
           dueDate: null,
-          receiptNo: 'REC-2026-00103',
+          receiptNo: `${prefix}00103`,
           paymentDate: todayStr,
           paymentMode: 'Net Banking',
           transactionNo: 'NEFT/PUNB2026091201',
@@ -335,7 +336,7 @@ const seedData = async () => {
           amountPaid: 16000.0,
           amountDue: 9000.0,
           dueDate: '2026-11-15',
-          receiptNo: 'REC-2026-00104',
+          receiptNo: `${prefix}00104`,
           paymentDate: todayStr,
           paymentMode: 'Cash',
           transactionNo: '',
@@ -350,7 +351,7 @@ const seedData = async () => {
           amountPaid: 16500.0,
           amountDue: 8500.0,
           dueDate: '2026-11-20',
-          receiptNo: 'REC-2026-00105',
+          receiptNo: `${prefix}00105`,
           paymentDate: yesterdayStr,
           paymentMode: 'Cheque',
           transactionNo: 'CHQ-482019 (SBI)',
@@ -365,7 +366,7 @@ const seedData = async () => {
           amountPaid: 300.0,
           amountDue: 0.0,
           dueDate: null,
-          receiptNo: 'REC-2026-00106',
+          receiptNo: `${prefix}00106`,
           paymentDate: todayStr,
           paymentMode: 'Cash',
           transactionNo: '',
@@ -379,7 +380,7 @@ const seedData = async () => {
 
     // 5. Seed Realistic Expenses (Debits/Outflow)
     const expenseCount = await Expense.count();
-    if (expenseCount === 0) {
+    if (expenseCount === 0 || force) {
       console.log('[Seeding] Seeding realistic operational debit vouchers (Expenses)...');
       
       const todayStr = new Date().toISOString().split('T')[0];
@@ -388,10 +389,11 @@ const seedData = async () => {
       const yesterdayStr = d.toISOString().split('T')[0];
       d.setDate(d.getDate() - 1);
       const twoDaysAgoStr = d.toISOString().split('T')[0];
+      const expPrefix = force ? `EXP-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}` : 'EXP-2026-000';
 
       const demoExpenses = [
         {
-          voucherNo: 'EXP-2026-0001',
+          voucherNo: `${expPrefix}1`,
           category: 'Stationery & Printing',
           expenseDate: twoDaysAgoStr,
           paidTo: 'Shyam Stationery Mart, Kote Gate',
@@ -404,7 +406,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0002',
+          voucherNo: `${expPrefix}2`,
           category: 'Electricity & Utilities',
           expenseDate: yesterdayStr,
           paidTo: 'JVVNL Bikaner Electric Sub-Division',
@@ -417,7 +419,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0003',
+          voucherNo: `${expPrefix}3`,
           category: 'Building & Campus Maintenance',
           expenseDate: yesterdayStr,
           paidTo: 'Ramesh Electricals & Hardware',
@@ -430,7 +432,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0004',
+          voucherNo: `${expPrefix}4`,
           category: 'Tea & Refreshments / Hospitality',
           expenseDate: todayStr,
           paidTo: 'Jain Canteen & Catering Services',
@@ -443,7 +445,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0005',
+          voucherNo: `${expPrefix}5`,
           category: 'Lab & Library Consumables',
           expenseDate: todayStr,
           paidTo: 'Universal Law Publishing Co. Pvt Ltd',
@@ -456,7 +458,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0006',
+          voucherNo: `${expPrefix}6`,
           category: 'Staff Welfare & Honorarium',
           expenseDate: todayStr,
           paidTo: 'Adv. Mahendra Purohit (Moot Court Judge)',
@@ -469,7 +471,7 @@ const seedData = async () => {
           status: 'APPROVED'
         },
         {
-          voucherNo: 'EXP-2026-0007',
+          voucherNo: `${expPrefix}7`,
           category: 'Miscellaneous & Petty Cash',
           expenseDate: todayStr,
           paidTo: 'Poonam Courier & Speed Post',

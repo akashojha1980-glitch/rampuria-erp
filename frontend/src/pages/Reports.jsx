@@ -890,9 +890,21 @@ const Reports = () => {
                 <Loading size="md" text="Compiling day book ledger..." />
               </div>
             ) : dayBookData.vouchers.length === 0 ? (
-              <div className="py-16 text-center text-slate-400 space-y-2">
-                <BookOpen className="w-8 h-8 mx-auto opacity-40" />
-                <p className="text-xs">No monetary transactions logged for this selected date range.</p>
+              <div className="py-14 px-4 text-center text-slate-500 space-y-3">
+                <BookOpen className="w-10 h-10 mx-auto text-brand-500 opacity-60" />
+                <div className="max-w-md mx-auto">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Transactions Found for Selected Range</h4>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Select a broader date range or click below to populate realistic Law College dummy transactions (fees & expenses) for testing and demo.
+                  </p>
+                </div>
+                <button
+                  onClick={handleSeedDemoData}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Populate Law College Sample Day Book</span>
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">

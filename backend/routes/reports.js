@@ -771,11 +771,11 @@ router.get('/admissions', protect, async (req, res) => {
 router.post('/seed-demo-data', protect, async (req, res) => {
   try {
     const seedData = require('../seed');
-    await seedData();
-    res.json({ message: 'Successfully seeded realistic Law College finance, fee payment, and expense records!' });
+    await seedData(true);
+    res.json({ success: true, message: 'Successfully populated realistic Law College Day Book, fee receipts, and operational expenses!' });
   } catch (err) {
     console.error('[Reports Seed API] error:', err.message);
-    res.status(500).json({ message: 'Error populating demo records' });
+    res.status(500).json({ message: 'Error populating demo records: ' + err.message });
   }
 });
 

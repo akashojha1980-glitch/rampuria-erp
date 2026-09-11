@@ -47,6 +47,12 @@ const Registration = () => {
   const [excelFileName, setExcelFileName] = useState('');
   const [importingExcel, setImportingExcel] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importSession, setImportSession] = useState('2025-26');
+  const [customImportSession, setCustomImportSession] = useState('');
+  const [importCourse, setImportCourse] = useState('Bachelor of Laws (L.L.B.)');
+  const [importYear, setImportYear] = useState('1st Year');
+  const [importSemester, setImportSemester] = useState('I & II Semester');
+  const [importAutoFee, setImportAutoFee] = useState(true);
   const fileInputRef = useRef(null);
 
   // Registration Number Format Settings States
@@ -351,6 +357,12 @@ const Registration = () => {
       return;
     }
 
+    const selectedSession = importSession === 'custom' ? customImportSession.trim() : importSession;
+    if (!selectedSession) {
+      showToastMsg('Please select or specify the Target Academic Session', 'error');
+      return;
+    }
+
     setImportingExcel(true);
     const token = localStorage.getItem('token');
     try {
@@ -360,12 +372,19 @@ const Registration = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ students: excelRows })
+        body: JSON.stringify({ 
+          students: excelRows,
+          targetSession: selectedSession,
+          defaultCourse: importCourse,
+          defaultYear: importYear,
+          defaultSemester: importSemester,
+          autoCreateFeePayment: importAutoFee
+        })
       });
       const data = await res.json();
       if (res.ok) {
         setImportResult(data);
-        showToastMsg(`Bulk import complete: ${data.count} students registered!`);
+        showToastMsg(`Bulk import complete: ${data.count} students registered in ${selectedSession}!`);
         fetchStudents();
       } else {
         showToastMsg(data.message || 'Error during bulk import', 'error');
@@ -1959,18 +1978,18 @@ const Registration = () => {
 
       {/* MODAL 1: BULK EXCEL IMPORT */}
       {showBulkImportModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-warm-900/80 dark:bg-black/85 backdrop-blur-md p-4 animate-fade-in no-print">
-          <div className="bg-white dark:bg-darkbg-surface border border-warm-200 dark:border-darkbg-border w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-warm-900/80 dark:bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-fade-in no-print">
+          <div className="bg-white dark:bg-darkbg-surface border border-warm-200 dark:border-darkbg-border w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/50 dark:bg-darkbg-base/50">
+            <div className="px-5 sm:px-6 py-4 border-b border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/50 dark:bg-darkbg-base/50">
               <div className="flex items-center space-x-3">
                 <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
                   <FileSpreadsheet className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-warm-900 dark:text-white">Bulk Student Excel Import</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Batch register past or new student records into college database</p>
+                  <h3 className="text-sm sm:text-base font-bold text-warm-900 dark:text-white">Bulk Student Excel Import & Session Assignment</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Import student lists from Excel (.xlsx / .csv) and assign to specific academic session</p>
                 </div>
               </div>
               <button
@@ -1982,42 +2001,130 @@ const Registration = () => {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
               
-              {/* Step 1: Download Sample */}
-              <div className="p-4 rounded-xl bg-brand-50/50 dark:bg-brand-950/20 border border-brand-200/60 dark:border-brand-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-xs font-bold text-brand-900 dark:text-brand-300">Step 1: Download Standard Excel Format</h4>
-                  <p className="text-[11px] text-brand-800/60 dark:text-brand-400">
-                    Use our official template with pre-built column headers (Name, Father, Mobile, Course, 10th/12th, Aadhar, etc.)
-                  </p>
+              {/* Step 1: Session & Defaults Selector (Crucial for 2-session college files) */}
+              <div className="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/70 dark:border-indigo-900/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-indigo-900 dark:text-indigo-300 flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    <span>Step 1: Konse Academic Session me Add Karna Hai? (Target Session)</span>
+                  </span>
+                  <span className="text-[10px] font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-md">Required</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadSampleExcel}
-                  className="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5 shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Template (.xlsx)</span>
-                </button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Session Dropdown */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      Academic Session *
+                    </label>
+                    <select
+                      value={importSession}
+                      onChange={(e) => setImportSession(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-darkbg-base text-xs font-bold text-indigo-900 dark:text-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="2025-26">2025-26 (Current Academic Session)</option>
+                      <option value="2024-25">2024-25 (Previous Academic Session)</option>
+                      <option value="2026-27">2026-27 (Upcoming Session)</option>
+                      <option value="2023-24">2023-24 (Past Session)</option>
+                      <option value="custom">✏️ Custom / Other Session...</option>
+                    </select>
+                  </div>
+
+                  {/* Custom Session Input if selected */}
+                  {importSession === 'custom' ? (
+                    <div className="flex flex-col space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                        Enter Custom Session *
+                      </label>
+                      <input
+                        type="text"
+                        value={customImportSession}
+                        onChange={(e) => setCustomImportSession(e.target.value)}
+                        placeholder="e.g. 2024-2027 or 2025-26"
+                        className="px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-darkbg-base text-xs font-bold"
+                      />
+                    </div>
+                  ) : (
+                    /* Default Course */
+                    <div className="flex flex-col space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                        Default Course (if missing in row)
+                      </label>
+                      <select
+                        value={importCourse}
+                        onChange={(e) => setImportCourse(e.target.value)}
+                        className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-base text-xs font-bold text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="Bachelor of Laws (L.L.B.)">Bachelor of Laws (L.L.B.) - 3 Year</option>
+                        <option value="B.A. L.L.B. Integrated">B.A. L.L.B. Integrated - 5 Year</option>
+                        <option value="Master of Laws (L.L.M.)">Master of Laws (L.L.M.) - 2 Year</option>
+                        <option value="PGDCC & PGDLL">PGDCC & PGDLL (1 Year Diploma)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Default Year */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      Academic Year
+                    </label>
+                    <select
+                      value={importYear}
+                      onChange={(e) => setImportYear(e.target.value)}
+                      className="px-3 py-2 rounded-xl border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-base text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
+                      <option value="1st Year">1st Year / Sem I & II</option>
+                      <option value="2nd Year">2nd Year / Sem III & IV</option>
+                      <option value="3rd Year">3rd Year / Sem V & VI</option>
+                      <option value="4th Year">4th Year (B.A. LL.B.)</option>
+                      <option value="5th Year">5th Year (B.A. LL.B.)</option>
+                      <option value="Diploma Year">Diploma Year</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Auto Fee payment creation toggle */}
+                <div className="pt-1 flex items-center justify-between border-t border-indigo-200/50 dark:border-indigo-900/30">
+                  <label className="flex items-center space-x-2 cursor-pointer text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                    <input
+                      type="checkbox"
+                      checked={importAutoFee}
+                      onChange={(e) => setImportAutoFee(e.target.checked)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                    />
+                    <span>Auto-record Fee Receipt if Excel contains fee payment amounts / receipt numbers</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSampleExcel}
+                    className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 hover:underline flex items-center space-x-1"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Download Sample Template</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Step 2: Upload Excel Box */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-warm-900 dark:text-white block">Step 2: Upload Filled Spreadsheet (.xlsx / .csv)</label>
+              {/* Step 2: Upload Excel File Box */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-warm-900 dark:text-white block">
+                  Step 2: Upload Excel Sheet (.xlsx / .xls / .csv)
+                </label>
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-6 border-2 border-dashed border-warm-300 dark:border-slate-700 hover:border-emerald-500 rounded-2xl bg-warm-50/50 dark:bg-darkbg-base/50 text-center cursor-pointer transition-all space-y-2"
+                  className="p-5 border-2 border-dashed border-warm-300 dark:border-slate-700 hover:border-emerald-500 rounded-2xl bg-warm-50/50 dark:bg-darkbg-base/50 text-center cursor-pointer transition-all space-y-1.5"
                 >
-                  <Upload className="w-8 h-8 text-emerald-600 dark:text-emerald-400 mx-auto" />
+                  <Upload className="w-7 h-7 text-emerald-600 dark:text-emerald-400 mx-auto" />
                   <div className="text-xs font-semibold text-warm-900 dark:text-white">
                     {excelFileName ? (
                       <span className="text-emerald-600 font-bold">{excelFileName} ({excelRows.length} rows loaded)</span>
                     ) : (
-                      <span>Click to browse or drag & drop your Excel file here</span>
+                      <span>Click to browse or drag & drop student Excel sheet here</span>
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 font-medium">Supports Microsoft Excel (.xlsx, .xls) and CSV</p>
+                  <p className="text-[10px] text-slate-400 font-medium">Supports all standard Rampuria Law College Excel sheets</p>
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -2035,10 +2142,15 @@ const Registration = () => {
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>{importResult.message}</span>
                   </div>
+                  {importResult.paymentsCreated > 0 && (
+                    <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 font-semibold">
+                      ✓ Created {importResult.paymentsCreated} initial fee receipt(s) in Fees Console & Day Book.
+                    </p>
+                  )}
                   {importResult.errorsCount > 0 && (
                     <div className="mt-2 text-[11px] space-y-1">
-                      <span className="font-bold text-rose-600">Skipped {importResult.errorsCount} rows due to errors:</span>
-                      <ul className="list-disc list-inside text-slate-600 dark:text-slate-400">
+                      <span className="font-bold text-rose-600">Skipped {importResult.errorsCount} rows due to missing names or invalid data:</span>
+                      <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 max-h-32 overflow-y-auto">
                         {importResult.errors.map((e, idx) => (
                           <li key={idx}>Row {e.row}: {e.student || ''} - {e.error}</li>
                         ))}
@@ -2053,9 +2165,11 @@ const Registration = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Parsed Spreadsheet Preview ({excelRows.length} rows)
+                      Parsed Spreadsheet Preview ({excelRows.length} rows loaded)
                     </span>
-                    <span className="text-[10px] text-slate-400">Showing first 25 rows</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">
+                      Target Session: {importSession === 'custom' ? customImportSession : importSession}
+                    </span>
                   </div>
                   <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-52 overflow-y-auto">
                     <table className="w-full text-left text-xs">
@@ -2065,7 +2179,7 @@ const Registration = () => {
                           <th className="px-3 py-2">Full Name</th>
                           <th className="px-3 py-2">Father Name</th>
                           <th className="px-3 py-2">Course</th>
-                          <th className="px-3 py-2">Session</th>
+                          <th className="px-3 py-2">Assigned Session</th>
                           <th className="px-3 py-2">Mobile</th>
                           <th className="px-3 py-2">Category</th>
                           <th className="px-3 py-2">10th %</th>
@@ -2076,11 +2190,11 @@ const Registration = () => {
                         {excelRows.slice(0, 25).map((row, i) => (
                           <tr key={i} className="hover:bg-warm-50/50">
                             <td className="px-3 py-1.5 text-slate-400 font-mono">{i + 1}</td>
-                            <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{row['Full Name'] || row.fullName || row.name || '-'}</td>
-                            <td className="px-3 py-1.5">{row["Father's Name"] || row.fatherName || '-'}</td>
-                            <td className="px-3 py-1.5 text-brand-600">{row['Course Applied'] || row.courseApplied || row.course || '-'}</td>
-                            <td className="px-3 py-1.5">{row['Academic Session'] || row.academicSession || '2025-26'}</td>
-                            <td className="px-3 py-1.5 font-mono">{row['Mobile Number'] || row.mobileNumber || '-'}</td>
+                            <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{row['Full Name'] || row.fullName || row.name || row['Student Name'] || '-'}</td>
+                            <td className="px-3 py-1.5">{row["Father's Name"] || row.fatherName || row.FatherName || '-'}</td>
+                            <td className="px-3 py-1.5 text-brand-600">{row['Course Applied'] || row.courseApplied || row.course || importCourse}</td>
+                            <td className="px-3 py-1.5 font-bold text-indigo-600 dark:text-indigo-400">{importSession === 'custom' ? customImportSession : (row['Academic Session'] || row.academicSession || importSession)}</td>
+                            <td className="px-3 py-1.5 font-mono">{row['Mobile Number'] || row.mobileNumber || row.mobile || '-'}</td>
                             <td className="px-3 py-1.5">{row.Category || row.category || 'General'}</td>
                             <td className="px-3 py-1.5">{row['10th %'] || row.marks10 || '-'}</td>
                             <td className="px-3 py-1.5">{row['12th %'] || row.marks12 || '-'}</td>
@@ -2095,11 +2209,11 @@ const Registration = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-3.5 border-t border-warm-200 dark:border-darkbg-border flex items-center justify-between bg-warm-50/30 dark:bg-darkbg-base/30">
-              <span className="text-[11px] text-slate-400 font-medium">
-                {excelRows.length > 0 ? `${excelRows.length} records ready to import` : 'Select an Excel file to begin'}
+            <div className="px-5 sm:px-6 py-3.5 border-t border-warm-200 dark:border-darkbg-border flex flex-col sm:flex-row items-center justify-between gap-2 bg-warm-50/30 dark:bg-darkbg-base/30">
+              <span className="text-[11px] text-slate-500 font-medium">
+                {excelRows.length > 0 ? `${excelRows.length} students ready to register into Session ${importSession === 'custom' ? customImportSession : importSession}` : 'Upload an Excel file to begin'}
               </span>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
                   onClick={() => setShowBulkImportModal(false)}
@@ -2114,7 +2228,7 @@ const Registration = () => {
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>{importingExcel ? 'Importing Batch...' : `Import ${excelRows.length} Students`}</span>
+                  <span>{importingExcel ? 'Registering Batch...' : `Register ${excelRows.length} Students in ${importSession === 'custom' ? customImportSession : importSession}`}</span>
                 </button>
               </div>
             </div>

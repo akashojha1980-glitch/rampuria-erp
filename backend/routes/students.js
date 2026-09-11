@@ -781,7 +781,17 @@ router.delete('/:id', protect, async (req, res) => {
 // @access  Private
 router.post('/bulk-import', protect, async (req, res) => {
   try {
-    const { students = [], defaultSession = '2025-26', defaultCourse = 'LL.B. (3 Year)' } = req.body;
+    const { 
+      students = [], 
+      targetSession, 
+      defaultSession = '2025-26', 
+      defaultCourse = 'Bachelor of Laws (L.L.B.)',
+      defaultYear = '1st Year',
+      defaultSemester = 'I & II Semester',
+      autoCreateFeePayment = true
+    } = req.body;
+
+    const assignedSession = targetSession || defaultSession;
 
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({ message: 'No student data rows provided for import' });
@@ -797,31 +807,62 @@ router.post('/bulk-import', protect, async (req, res) => {
     });
     let currentSrNo = lastStudent && lastStudent.srNo ? lastStudent.srNo + 1 : 1;
 
+    // Helper to find value from row by multiple potential key aliases
+    const getVal = (row, aliases, fallback = '') => {
+      for (const alias of aliases) {
+        if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== '') {
+          return String(row[alias]).trim();
+        }
+      }
+      // Also do a case-insensitive key search
+      const rowKeys = Object.keys(row);
+      for (const alias of aliases) {
+        const lowerAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchedKey = rowKeys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === lowerAlias);
+        if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+          return String(row[matchedKey]).trim();
+        }
+      }
+      return fallback;
+    };
+
     const imported = [];
     const errors = [];
+    let paymentsCreated = 0;
 
     for (let i = 0; i < students.length; i++) {
       const row = students[i];
       const rowNum = i + 1;
 
       try {
-        const fullName = (row.fullName || row['Full Name'] || row.name || row['Student Name'] || '').trim();
+        const fullName = getVal(row, ['fullName', 'Full Name', 'Student Name', 'Candidate Name', 'name', 'Name', 'STUDENT NAME', 'StudentName', 'नाम', 'छात्र का नाम']);
         if (!fullName) {
-          errors.push({ row: rowNum, error: 'Student Name / Full Name is missing' });
+          errors.push({ row: rowNum, error: 'Student Name is missing in this row' });
           continue;
         }
 
-        const courseApplied = (row.courseApplied || row['Course Applied'] || row.course || row.Course || defaultCourse).trim();
-        const academicSession = (row.academicSession || row['Academic Session'] || row.session || row.Session || defaultSession).trim();
-        const email = (row.email || row.Email || `student_${Date.now()}_${i}@college.local`).trim();
-        const mobileNumber = String(row.mobileNumber || row['Mobile Number'] || row.mobile || row.Mobile || '').trim() || '0000000000';
+        const courseApplied = getVal(row, ['courseApplied', 'Course Applied', 'course', 'Course', 'Class', 'Class/Course', 'Branch', 'कक्षा', 'पाठ्यक्रम'], defaultCourse);
+        const academicSession = assignedSession || getVal(row, ['academicSession', 'Academic Session', 'session', 'Session', 'Batch', 'सत्र'], defaultSession);
+        const academicYear = getVal(row, ['academicYear', 'Academic Year', 'year', 'Year', 'Current Year', 'वर्ष'], defaultYear);
+        const semester = getVal(row, ['semester', 'Semester', 'Current Semester', 'Term', 'सेमेस्टर'], defaultSemester);
 
-        // Check if email already exists
-        const emailExists = await Student.findOne({ where: { email } });
-        const cleanEmail = emailExists ? `student_${Date.now()}_${i}@college.local` : email;
+        let mobileNumber = getVal(row, ['mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल'], '0000000000');
+        // Clean mobile number (keep digits)
+        mobileNumber = mobileNumber.replace(/[^0-9]/g, '');
+        if (mobileNumber.length < 10) mobileNumber = mobileNumber.padEnd(10, '0');
+        if (mobileNumber.length > 10) mobileNumber = mobileNumber.slice(-10);
+
+        let rawEmail = getVal(row, ['email', 'Email', 'Email ID', 'EMAIL']);
+        if (!rawEmail || !rawEmail.includes('@')) {
+          rawEmail = `student_${Date.now()}_${i}@bjsrampuria.edu.in`;
+        }
+
+        // Handle email uniqueness
+        const emailExists = await Student.findOne({ where: { email: rawEmail } });
+        const cleanEmail = emailExists ? `student_${Date.now()}_${i}_${Math.floor(Math.random()*1000)}@bjsrampuria.edu.in` : rawEmail;
 
         // Registration ID: use if provided, else auto-generate sequentially
-        let registrationId = (row.registrationId || row['Registration ID'] || row.regNo || row['Reg No'] || '').trim();
+        let registrationId = getVal(row, ['registrationId', 'Registration ID', 'regNo', 'Reg No', 'RegNo', 'Roll No', 'Enrollment No', 'Form No']);
         if (registrationId) {
           const idExists = await Student.findOne({ where: { registrationId } });
           if (idExists) {
@@ -831,62 +872,115 @@ router.post('/bulk-import', protect, async (req, res) => {
           registrationId = formatRegId(currentRegNum++, config, academicSession);
         }
 
+        // Gender Normalization
+        let rawGender = getVal(row, ['gender', 'Gender', 'Sex', 'SEX', 'लिंग'], 'Male');
+        let gender = 'Male';
+        if (/f|female|महिला/i.test(rawGender)) gender = 'Female';
+        else if (/trans|other/i.test(rawGender)) gender = 'Other';
+
+        // Category Normalization
+        let rawCat = getVal(row, ['category', 'Category', 'Caste', 'Social Category', 'वर्ग'], 'General');
+        let category = 'General';
+        if (/obc/i.test(rawCat)) category = 'OBC';
+        else if (/sc/i.test(rawCat)) category = 'SC';
+        else if (/st/i.test(rawCat)) category = 'ST';
+        else if (/ews/i.test(rawCat)) category = 'EWS';
+        else if (/mbc/i.test(rawCat)) category = 'MBC';
+
+        // Date of Birth
+        let dob = getVal(row, ['dateOfBirth', 'DOB', 'Date of Birth', 'Birth Date', 'dob', 'D.O.B', 'जन्म तिथि'], '2004-01-01');
+        // If Excel date was parsed as number or DD/MM/YYYY
+        if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(dob)) {
+          const parts = dob.split(/[\/\-]/);
+          const yyyy = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+          dob = `${yyyy}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+
         const newStudent = await Student.create({
           srNo: currentSrNo++,
           registrationId,
           fullName,
-          fatherName: (row.fatherName || row["Father's Name"] || row.FatherName || '').trim(),
-          motherName: (row.motherName || row["Mother's Name"] || row.MotherName || '').trim(),
+          fatherName: getVal(row, ['fatherName', "Father's Name", 'Father Name', 'FATHER_NAME', 'FATHER NAME', 'Father', 'पिता का नाम']),
+          motherName: getVal(row, ['motherName', "Mother's Name", 'Mother Name', 'MOTHER_NAME', 'MOTHER NAME', 'Mother', 'माता का नाम']),
           mobileNumber,
-          alternateMobile: String(row.alternateMobile || row['Alt Mobile'] || '').trim(),
+          alternateMobile: getVal(row, ['alternateMobile', 'Alt Mobile', 'Alternate Mobile', 'Father Mobile', 'Parents Contact']),
           email: cleanEmail,
-          gender: (row.gender || row.Gender || 'Male').trim(),
-          dateOfBirth: row.dateOfBirth || row.dob || row.DOB || '2000-01-01',
-          address: (row.address || row.Address || '').trim(),
-          city: (row.city || row.City || 'Bikaner').trim(),
-          state: (row.state || row.State || 'Rajasthan').trim(),
-          pincode: String(row.pincode || row.Pincode || '334001').trim(),
-          category: (row.category || row.Category || 'General').trim(),
+          gender,
+          dateOfBirth: dob,
+          address: getVal(row, ['address', 'Address', 'Permanent Address', 'Full Address', 'Village', 'पता']),
+          city: getVal(row, ['city', 'City', 'District', 'शहर'], 'Bikaner'),
+          state: getVal(row, ['state', 'State', 'राज्य'], 'Rajasthan'),
+          pincode: getVal(row, ['pincode', 'Pincode', 'Pin Code', 'Postal Code', 'पिन कोड'], '334001'),
+          category,
           courseApplied,
           academicSession,
-          academicYear: (row.academicYear || row['Academic Year'] || row.year || '1st Year').trim(),
-          semester: (row.semester || row.Semester || '1st Semester').trim(),
-          admissionBase: (row.admissionBase || row['Admission Base'] || 'UG').trim(),
-          formNo: String(row.formNo || row['Form No'] || '').trim(),
-          studentAccNo: String(row.studentAccNo || row['Student Acc No'] || '').trim(),
-          medium: (row.medium || row.Medium || 'Hindi').trim(),
-          permanentAddress: (row.permanentAddress || row['Permanent Address'] || row.address || '').trim(),
-          parentsContact: String(row.parentsContact || row['Parents Contact'] || '').trim(),
-          whatsAppNo: String(row.whatsAppNo || row['WhatsApp No'] || '').trim(),
-          aadharNo: String(row.aadharNo || row['Aadhar No'] || '').trim(),
-          yearlyIncomeFather: String(row.yearlyIncomeFather || row['Father Income'] || '').trim(),
-          yearlyIncomeMother: String(row.yearlyIncomeMother || row['Mother Income'] || '').trim(),
+          academicYear,
+          semester,
+          admissionBase: getVal(row, ['admissionBase', 'Admission Base', 'Base'], 'UG'),
+          formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No']),
+          studentAccNo: getVal(row, ['studentAccNo', 'Student Acc No', 'Account No']),
+          medium: getVal(row, ['medium', 'Medium', 'माध्यम'], 'Hindi'),
+          permanentAddress: getVal(row, ['permanentAddress', 'Permanent Address', 'address', 'Address']),
+          parentsContact: getVal(row, ['parentsContact', 'Parents Contact', 'alternateMobile']),
+          whatsAppNo: getVal(row, ['whatsAppNo', 'WhatsApp No', 'WhatsApp', 'mobileNumber']),
+          aadharNo: getVal(row, ['aadharNo', 'Aadhar No', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
+          yearlyIncomeFather: getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income']),
+          yearlyIncomeMother: getVal(row, ['yearlyIncomeMother', 'Mother Income']),
           
           // Academic 10th
-          marks10: String(row.marks10 || row['10th %'] || row['10th Marks'] || '').trim(),
-          board10: (row.board10 || row['10th Board'] || '').trim(),
-          passingYear10: String(row.passingYear10 || row['10th Year'] || '').trim(),
-          maxMarks10: String(row.maxMarks10 || row['10th Max'] || '').trim(),
-          obtainedMarks10: String(row.obtainedMarks10 || row['10th Obtained'] || '').trim(),
+          marks10: getVal(row, ['marks10', '10th %', '10th Marks', '10th Percentage', '10th']),
+          board10: getVal(row, ['board10', '10th Board', 'Board 10th', 'RBSE/CBSE'], 'RBSE'),
+          passingYear10: getVal(row, ['passingYear10', '10th Year', 'Year 10th']),
+          maxMarks10: getVal(row, ['maxMarks10', '10th Max']),
+          obtainedMarks10: getVal(row, ['obtainedMarks10', '10th Obtained']),
           
           // Academic 12th
-          marks12: String(row.marks12 || row['12th %'] || row['12th Marks'] || '').trim(),
-          board12: (row.board12 || row['12th Board'] || '').trim(),
-          passingYear12: String(row.passingYear12 || row['12th Year'] || '').trim(),
-          subject12: (row.subject12 || row['12th Subject'] || '').trim(),
-          maxMarks12: String(row.maxMarks12 || row['12th Max'] || '').trim(),
-          obtainedMarks12: String(row.obtainedMarks12 || row['12th Obtained'] || '').trim(),
+          marks12: getVal(row, ['marks12', '12th %', '12th Marks', '12th Percentage', '12th']),
+          board12: getVal(row, ['board12', '12th Board', 'Board 12th'], 'RBSE'),
+          passingYear12: getVal(row, ['passingYear12', '12th Year', 'Year 12th']),
+          subject12: getVal(row, ['subject12', '12th Subject', 'Stream']),
+          maxMarks12: getVal(row, ['maxMarks12', '12th Max']),
+          obtainedMarks12: getVal(row, ['obtainedMarks12', '12th Obtained']),
 
           // Graduation / Qualifying
-          gradUniversity: (row.gradUniversity || row['Graduation University'] || '').trim(),
-          gradYear: String(row.gradYear || row['Graduation Year'] || '').trim(),
-          gradSubject: (row.gradSubject || row['Graduation Subject'] || '').trim(),
-          gradMaxMarks: String(row.gradMaxMarks || row['Grad Max'] || '').trim(),
-          gradObtainedMarks: String(row.gradObtainedMarks || row['Grad Obtained'] || '').trim(),
-          gradPercentage: String(row.gradPercentage || row['Grad %'] || '').trim(),
+          gradUniversity: getVal(row, ['gradUniversity', 'Graduation University', 'Grad Univ', 'University']),
+          gradYear: getVal(row, ['gradYear', 'Graduation Year', 'Grad Year']),
+          gradSubject: getVal(row, ['gradSubject', 'Graduation Subject', 'Grad Subject']),
+          gradMaxMarks: getVal(row, ['gradMaxMarks', 'Grad Max']),
+          gradObtainedMarks: getVal(row, ['gradObtainedMarks', 'Grad Obtained']),
+          gradPercentage: getVal(row, ['gradPercentage', 'Grad %', 'Graduation %', 'Graduation Marks']),
 
-          verificationStatus: 'Verified' // bulk imports default to verified
+          verificationStatus: 'Approved',
+          seatAllotted: true
         });
+
+        // Check if row has fee payment records to auto-link
+        const feePaidRaw = getVal(row, ['feesPaid', 'Fees Paid', 'Fee Paid', 'Paid Amount', 'Amount Paid', 'Fee', 'Fees', 'Amount', 'शुल्क']);
+        const feeAmount = parseFloat(feePaidRaw);
+        if (autoCreateFeePayment && !isNaN(feeAmount) && feeAmount > 0) {
+          const receiptNo = getVal(row, ['receiptNo', 'Receipt No', 'Receipt', 'Challan No', 'Bill No'], `REC-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}${i}`);
+          const paymentMode = getVal(row, ['paymentMode', 'Payment Mode', 'Mode', 'Payment Type'], 'Cash');
+          const transactionNo = getVal(row, ['transactionNo', 'Transaction No', 'Txn No', 'UTR', 'Cheque No', 'Ref No']);
+          const paymentDate = getVal(row, ['paymentDate', 'Payment Date', 'Date'], new Date().toISOString().split('T')[0]);
+          const installmentName = getVal(row, ['installmentName', 'Installment', 'Fee Head'], '1st Installment / Admission Fee');
+
+          await FeePayment.create({
+            studentId: newStudent.id,
+            academicYear: newStudent.academicYear || '1st Year',
+            academicSession: newStudent.academicSession || assignedSession,
+            semester: newStudent.semester || 'I & II Semester',
+            installmentName,
+            amountPaid: feeAmount,
+            amountDue: 0.0,
+            dueDate: null,
+            receiptNo,
+            paymentDate,
+            paymentMode,
+            transactionNo,
+            remarks: `Imported via Bulk Excel (${row.fullName || 'Student'})`
+          });
+          paymentsCreated++;
+        }
 
         imported.push(mapId(newStudent));
       } catch (err) {
@@ -903,8 +997,10 @@ router.post('/bulk-import', protect, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Successfully imported ${imported.length} student(s) into registry`,
+      message: `Successfully imported ${imported.length} student(s) into Session ${assignedSession}! ${paymentsCreated > 0 ? `(${paymentsCreated} fee receipt(s) recorded)` : ''}`,
       count: imported.length,
+      assignedSession,
+      paymentsCreated,
       errorsCount: errors.length,
       errors,
       imported
