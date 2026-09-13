@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SuperAdminProvider, useSuperAdmin } from './context/SuperAdminContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -18,8 +19,25 @@ import Promotion from './pages/Promotion';
 import Results from './pages/Results';
 import StudentDossier from './pages/StudentDossier';
 import DatabaseSettings from './pages/DatabaseSettings';
+import PaymentGatewaySettings from './pages/PaymentGatewaySettings';
+import AboutSoftware from './pages/AboutSoftware';
+import SplashScreen from './components/brand/SplashScreen';
 
-// Protected Route Wrapper
+// Super Admin Portal Imports
+import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
+import SuperAdminLogin from './pages/superadmin/SuperAdminLogin';
+import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
+import RegisterCollege from './pages/superadmin/RegisterCollege';
+import CollegeList from './pages/superadmin/CollegeList';
+import CollegeProfile from './pages/superadmin/CollegeProfile';
+import LicenseManagement from './pages/superadmin/LicenseManagement';
+import FeatureControl from './pages/superadmin/FeatureControl';
+import DatabaseManagement from './pages/superadmin/DatabaseManagement';
+import PaymentManagement from './pages/superadmin/PaymentManagement';
+import SupportManagement from './pages/superadmin/SupportManagement';
+import AuditLogViewer from './pages/superadmin/AuditLogViewer';
+
+// Protected Route Wrapper (College Admin)
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
@@ -34,7 +52,22 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Route Permission Guard
+// Protected Route Wrapper (Super Admin Master)
+const SuperAdminProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useSuperAdmin();
+
+  if (loading) {
+    return <Loading size="lg" text="Authenticating Super Admin Master Session..." fullScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/superadmin/login" replace />;
+  }
+
+  return children;
+};
+
+// Route Permission Guard (College Admin)
 const PermissionGuard = ({ permission, children }) => {
   const { admin } = useAuth();
 
@@ -80,10 +113,35 @@ function AppRoutes() {
   return (
     <Router>
       <Routes>
-        {/* Public Admin authentication */}
+        {/* ========================================================================= */}
+        {/* SUPER ADMIN HQ PORTAL ROUTES                                              */}
+        {/* ========================================================================= */}
+        <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+        <Route
+          path="/superadmin"
+          element={
+            <SuperAdminProtectedRoute>
+              <SuperAdminLayout />
+            </SuperAdminProtectedRoute>
+          }
+        >
+          <Route index element={<SuperAdminDashboard />} />
+          <Route path="colleges" element={<CollegeList />} />
+          <Route path="colleges/new" element={<RegisterCollege />} />
+          <Route path="colleges/:id" element={<CollegeProfile />} />
+          <Route path="licenses" element={<LicenseManagement />} />
+          <Route path="feature-control" element={<FeatureControl />} />
+          <Route path="database" element={<DatabaseManagement />} />
+          <Route path="payments" element={<PaymentManagement />} />
+          <Route path="support" element={<SupportManagement />} />
+          <Route path="audit" element={<AuditLogViewer />} />
+        </Route>
+
+        {/* ========================================================================= */}
+        {/* COLLEGE CLIENT APPLICATION ROUTES                                         */}
+        {/* ========================================================================= */}
         <Route path="/login" element={<Login />} />
 
-        {/* Private ERP Core Layout routes */}
         <Route 
           path="/" 
           element={
@@ -98,6 +156,7 @@ function AppRoutes() {
           <Route path="promotion" element={<PermissionGuard permission="verification"><Promotion /></PermissionGuard>} />
           <Route path="results" element={<PermissionGuard permission="verification"><Results /></PermissionGuard>} />
           <Route path="fees" element={<PermissionGuard permission="fees"><FeesConsole /></PermissionGuard>} />
+          <Route path="payment-gateway" element={<PermissionGuard permission="fees"><PaymentGatewaySettings /></PermissionGuard>} />
           <Route path="library" element={<PermissionGuard permission="library"><LibraryConsole /></PermissionGuard>} />
           <Route path="users" element={<PermissionGuard permission="users"><UserManagement /></PermissionGuard>} />
           <Route path="reports" element={<PermissionGuard permission="reports"><Reports /></PermissionGuard>} />
@@ -105,6 +164,7 @@ function AppRoutes() {
           <Route path="profile/:id" element={<ProfileCard />} />
           <Route path="dossier" element={<StudentDossier />} />
           <Route path="dossier/:id" element={<StudentDossier />} />
+          <Route path="about" element={<AboutSoftware />} />
         </Route>
 
         {/* Route fallbacks */}
@@ -117,11 +177,14 @@ function AppRoutes() {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <SessionProvider>
-          <AppRoutes />
-        </SessionProvider>
-      </AuthProvider>
+      <SuperAdminProvider>
+        <AuthProvider>
+          <SessionProvider>
+            <SplashScreen />
+            <AppRoutes />
+          </SessionProvider>
+        </AuthProvider>
+      </SuperAdminProvider>
     </ThemeProvider>
   );
 }

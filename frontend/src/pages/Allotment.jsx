@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Award, Play, CheckCircle, HelpCircle, 
-  UserCheck, ShieldAlert, CheckSquare, RefreshCw
+  UserCheck, ShieldAlert, CheckSquare, RefreshCw, Printer, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
+import PrintHeader from '../components/print/PrintHeader';
+import PrintFooter from '../components/print/PrintFooter';
 
 const Allotment = () => {
   const [courses, setCourses] = useState([]);
@@ -213,13 +215,38 @@ const Allotment = () => {
 
           {/* RIGHT: Course Merit Ranking List table */}
           <div className="lg:col-span-2 classy-card flex flex-col space-y-4 h-[calc(100vh-12rem)] overflow-y-auto">
-            <div>
-              <h3 className="text-sm font-bold text-warm-900 dark:text-slate-100 uppercase tracking-wider">
-                Merit List: <span className="text-brand-600 dark:text-brand-300 font-serif font-bold">{selectedCourse}</span>
-              </h3>
-              <span className="text-xs font-medium text-warm-800/40 dark:text-slate-400">
-                Verified applicants sorted in descending order of 12th percentage marks
-              </span>
+            <div className="flex items-center justify-between pb-2 border-b border-warm-100 dark:border-darkbg-border">
+              <div>
+                <h3 className="text-sm font-bold text-warm-900 dark:text-slate-100 uppercase tracking-wider">
+                  Merit List: <span className="text-brand-600 dark:text-brand-300 font-serif font-bold">{selectedCourse}</span>
+                </h3>
+                <span className="text-xs font-medium text-warm-800/40 dark:text-slate-400">
+                  Verified applicants sorted in descending order of qualifying percentage
+                </span>
+              </div>
+              {meritList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-warm-100 hover:bg-warm-200 dark:bg-darkbg-base dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 no-print"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Merit List (A4)</span>
+                </button>
+              )}
+            </div>
+
+            {/* Printable Institutional Merit List View (Shown during Print) */}
+            <div className="hidden print:block printable-report font-sans">
+              <PrintHeader
+                title="OFFICIAL MERIT LIST & SEAT ALLOTMENT REGISTER"
+                subtitle={`Course: ${selectedCourse}`}
+                extraMeta={[
+                  { label: 'Course Code', value: selectedCourse },
+                  { label: 'Total Verified Candidates', value: `${meritList.length}` },
+                  { label: 'Total Allotted', value: `${meritList.filter(s => s.seatAllotted).length}` }
+                ]}
+              />
             </div>
 
             {meritLoading ? (
@@ -231,36 +258,37 @@ const Allotment = () => {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-warm-200/50 dark:border-darkbg-border">
-                <table className="min-w-full divide-y divide-warm-200/30 dark:divide-darkbg-border">
+                <table className="min-w-full divide-y divide-warm-200/30 dark:divide-darkbg-border print-table text-xs">
                   <thead className="bg-warm-50/50 dark:bg-darkbg-base/30">
                     <tr>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Rank</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Student Name</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Category</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">12th Marks</th>
-                      <th className="px-6 py-4 text-left text-xs font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider text-center">Status</th>
+                      <th className="px-4 py-3 text-center w-14 font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Rank</th>
+                      <th className="px-4 py-3 text-left font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Reg. ID</th>
+                      <th className="px-4 py-3 text-left font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Student Name</th>
+                      <th className="px-4 py-3 text-left font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Category</th>
+                      <th className="px-4 py-3 text-center font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Qualifying %</th>
+                      <th className="px-4 py-3 text-center font-bold text-warm-800/70 dark:text-slate-400 uppercase tracking-wider">Allotment Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-warm-200/20 dark:divide-darkbg-border bg-transparent">
                     {meritList.map((s) => (
-                      <tr key={s._id} className="hover:bg-warm-100/10 dark:hover:bg-darkbg-base/20 transition-all">
-                        <td className="px-6 py-4 text-xs font-bold text-warm-800/40 dark:text-slate-500">#{s.meritRank}</td>
-                        <td className="px-6 py-4 text-xs">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-warm-900 dark:text-slate-200">{s.fullName}</span>
-                            <span className="text-[10px] text-warm-800/40 dark:text-slate-555">{s.registrationId}</span>
-                          </div>
+                      <tr key={s._id || s.id} className="hover:bg-warm-100/10 dark:hover:bg-darkbg-base/20 transition-all">
+                        <td className="px-4 py-2.5 text-center font-bold font-mono text-warm-800/60 dark:text-slate-400">#{s.meritRank}</td>
+                        <td className="px-4 py-2.5 font-mono font-bold text-slate-800 dark:text-slate-200">{s.registrationId}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-bold text-warm-900 dark:text-slate-200 uppercase">{s.fullName}</span>
                         </td>
-                        <td className="px-6 py-4 text-xs text-warm-800/60 dark:text-slate-400">{s.category}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-warm-900 dark:text-slate-200">{s.marks12}%</td>
-                        <td className="px-6 py-4 text-xs text-center">
+                        <td className="px-4 py-2.5 font-semibold text-warm-800/60 dark:text-slate-400">{s.category}</td>
+                        <td className="px-4 py-2.5 text-center font-mono font-bold text-warm-900 dark:text-slate-200">{s.marks12}%</td>
+                        <td className="px-4 py-2.5 text-center">
                           {s.seatAllotted ? (
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-center space-x-1">
-                              <CheckSquare className="w-3.5 h-3.5" />
-                              <span>Allotted Seat</span>
+                            <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              <CheckSquare className="w-3 h-3" />
+                              <span>SEAT ALLOTTED</span>
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold text-warm-800/40 dark:text-slate-500">Waiting List</span>
+                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              WAITING LIST
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -269,6 +297,18 @@ const Allotment = () => {
                 </table>
               </div>
             )}
+
+            {/* Printable Footer (Shown during Print) */}
+            <div className="hidden print:block">
+              <PrintFooter
+                signatories={[
+                  { title: 'Convener Admissions', subtitle: 'Merit Committee' },
+                  { title: 'Faculty Dean', subtitle: 'Academic Scrutiny' },
+                  { title: 'Principal / Authorized Officer', subtitle: 'B.J.S. Rampuria Jain Law College' }
+                ]}
+                customNote="Official Seat Allotment Merit Register extracted from Pankh Gold College Management ERP. Subject to final document physical verification."
+              />
+            </div>
           </div>
         </div>
       )}

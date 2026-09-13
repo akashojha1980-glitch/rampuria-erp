@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useSession } from '../context/SessionContext';
+import { Watermark } from './brand/Watermark';
+import { BrandFooter } from './brand/BrandFooter';
+import { BRAND_CONFIG } from '../config/branding';
 import { 
   Database, Clock, RefreshCw, GraduationCap, 
-  BookOpen, Scale, Scroll, PenTool, BookMarked, Calendar, Menu 
+  BookOpen, Scale, Scroll, PenTool, BookMarked, Calendar, Menu, Shield
 } from 'lucide-react';
 
 const Layout = () => {
@@ -34,12 +37,14 @@ const Layout = () => {
   // Check database status
   const checkDbStatus = async () => {
     setDbChecking(true);
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch('/api/courses', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      setDbOnline(res.ok || res.status === 401);
+      const res = await fetch('/api/health');
+      if (res.ok) {
+        const data = await res.json();
+        setDbOnline(data.connected === true || data.status === 'ok');
+      } else {
+        setDbOnline(false);
+      }
     } catch (err) {
       setDbOnline(false);
     } finally {
@@ -219,6 +224,9 @@ const Layout = () => {
         <main className="flex-1 w-full overflow-x-hidden">
           <Outlet />
         </main>
+
+        {/* Enterprise Brand Footer */}
+        <BrandFooter />
       </div>
     </div>
   );

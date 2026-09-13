@@ -3,10 +3,12 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, UserPlus, FileCheck, Award, 
   LogOut, Sun, Moon, GraduationCap, CreditCard, BookOpen, Users, BarChart3, FileText, X,
-  Database
+  Database, Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { PankhGoldLogo } from './brand/PankhGoldLogo';
+import { BRAND_CONFIG } from '../config/branding';
 
 const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
   const { admin, logout } = useAuth();
@@ -32,10 +34,12 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
     { name: 'Promotion', path: '/promotion', icon: <GraduationCap className="w-5 h-5" />, key: 'verification' },
     { name: 'Exam Results', path: '/results', icon: <Award className="w-5 h-5" />, key: 'verification' },
     { name: 'Fees Console', path: '/fees', icon: <CreditCard className="w-5 h-5" />, key: 'fees' },
+    { name: 'Payment Gateway', path: '/payment-gateway', icon: <CreditCard className="w-5 h-5 text-amber-500" />, key: 'fees' },
     { name: 'Library Console', path: '/library', icon: <BookOpen className="w-5 h-5" />, key: 'library' },
     { name: 'Reports Panel', path: '/reports', icon: <BarChart3 className="w-5 h-5" />, key: 'reports' },
     { name: 'Staff Access', path: '/users', icon: <Users className="w-5 h-5" />, key: 'users' },
     { name: 'Database & LAN', path: '/database-settings', icon: <Database className="w-5 h-5" />, key: 'database' },
+    { name: 'About PG-CMS', path: '/about', icon: <Info className="w-5 h-5" />, key: 'about' },
   ];
 
   const isSuperAdmin = 
@@ -46,7 +50,7 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
 
   const navItems = allNavItems.filter(item => {
     if (isSuperAdmin) return true;
-    if (item.key === 'dashboard' || item.key === 'database') return true;
+    if (item.key === 'dashboard' || item.key === 'database' || item.key === 'about') return true;
     return admin?.permissions?.includes(item.key);
   });
 
@@ -61,21 +65,16 @@ const Sidebar = ({ mobileOpen = false, setMobileOpen = () => {} }) => {
       )}
 
       <aside className={`
-        w-72 bg-white dark:bg-darkbg-surface border-r border-warm-200/50 dark:border-darkbg-border h-screen flex flex-col justify-between p-4 md:p-5 fixed left-0 top-0 z-50 md:z-20 shadow-xl md:shadow-sm no-print transition-transform duration-300 ease-in-out
+        w-72 bg-white dark:bg-[#11141d] border-r border-warm-200/50 dark:border-darkbg-border h-screen flex flex-col justify-between p-4 md:p-5 fixed left-0 top-0 z-50 md:z-20 shadow-xl md:shadow-sm no-print transition-transform duration-300 ease-in-out
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Header / Logo */}
         <div className="flex items-center justify-between shrink-0 pb-3 border-b border-warm-200/50 dark:border-darkbg-border">
-          <div className="flex items-center space-x-3 px-1">
-            <div className="p-2 bg-brand-600 dark:bg-brand-500 rounded-xl text-white shadow-sm flex-shrink-0">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-serif font-bold text-xs tracking-tight text-warm-900 dark:text-slate-100 leading-tight">
-                B.J.S. RAMPURIA JAIN
-              </h1>
-              <span className="text-[9px] font-bold text-brand-500 tracking-wider uppercase block mt-0.5">
-                LAW COLLEGE ERP
+          <div className="px-1">
+            <PankhGoldLogo variant="compact" size="sm" />
+            <div className="mt-1.5 pl-0.5">
+              <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block leading-tight">
+                {BRAND_CONFIG.defaultCollegeName}
               </span>
             </div>
           </div>

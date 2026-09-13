@@ -13,6 +13,8 @@ import Toast from '../components/Toast';
 import PrintReceiptModal from '../components/PrintReceiptModal';
 import ExpenseModal from '../components/ExpenseModal';
 import { useSession } from '../context/SessionContext';
+import PrintHeader from '../components/print/PrintHeader';
+import PrintFooter from '../components/print/PrintFooter';
 
 const getCourseBadge = (course) => {
   if (!course) return null;
@@ -501,9 +503,92 @@ const Reports = () => {
     }
   };
 
+  // Helper for generating standardized institutional report header metadata
+  const getReportMetadata = () => {
+    const dateStr = (startDate && endDate) 
+      ? `${startDate} to ${endDate}`
+      : startDate ? `From ${startDate}` : endDate ? `Up to ${endDate}` : 'All Time';
+
+    switch (activeTab) {
+      case 'day-book':
+        return {
+          title: 'UNIFIED DAY BOOK & FINANCIAL LEDGER',
+          subtitle: 'Double-Entry Transaction Cashflow & Running Balances',
+          dateRange: dateStr,
+          extraMeta: [
+            { label: 'Mode Filter', value: filterPaymentMode },
+            { label: 'Total Inflow', value: `₹${(dayBookData.summary.totalReceipts || 0).toLocaleString('en-IN')}` },
+            { label: 'Total Outflow', value: `₹${(dayBookData.summary.totalExpenses || 0).toLocaleString('en-IN')}` },
+            { label: 'Closing Net', value: `₹${(dayBookData.summary.closingBalance || 0).toLocaleString('en-IN')}` }
+          ]
+        };
+      case 'fees-posting':
+        return {
+          title: 'DAILY FEE COLLECTION REGISTER',
+          subtitle: 'Student Fee Receipt Postings & Account Allocation Journal',
+          dateRange: dateStr,
+          extraMeta: [
+            { label: 'Course', value: filterCourse },
+            { label: 'Mode', value: filterPaymentMode },
+            { label: 'Total Collected', value: `₹${feesPostingData.stats.totalCollected.toLocaleString('en-IN')}` }
+          ]
+        };
+      case 'defaulters':
+        return {
+          title: 'OUTSTANDING DUES & DEFAULTERS REGISTER',
+          subtitle: 'Candidate Fee Balance & Unpaid Installments Ledger',
+          dateRange: dateStr,
+          extraMeta: [
+            { label: 'Course Filter', value: filterCourse },
+            { label: 'Defaulters Count', value: `${defaultersData.stats.defaulterCount} Candidates` },
+            { label: 'Total Outstanding Dues', value: `₹${defaultersData.stats.totalDue.toLocaleString('en-IN')}` }
+          ]
+        };
+      case 'head-summary':
+        return {
+          title: 'HEAD-WISE FEE ALLOCATION SUMMARY',
+          subtitle: 'Institutional Revenue Distribution Across Structured Fee Heads',
+          dateRange: dateStr,
+          extraMeta: [
+            { label: 'Total Receipts Handled', value: `${headSummaryData.stats.receiptCount}` },
+            { label: 'Total Revenue Pool', value: `₹${headSummaryData.stats.totalCollected.toLocaleString('en-IN')}` }
+          ]
+        };
+      case 'expenses':
+        return {
+          title: 'EXPENSE & DEBIT VOUCHER REGISTER',
+          subtitle: 'Operational Disbursements, Vendor Payments & Petty Cash Journal',
+          dateRange: dateStr,
+          extraMeta: [
+            { label: 'Total Disbursed', value: `₹${expensesData.stats.totalAmount.toLocaleString('en-IN')}` },
+            { label: 'Vouchers Count', value: `${expensesData.stats.totalCount}` }
+          ]
+        };
+      default:
+        return {
+          title: 'OFFICIAL INSTITUTIONAL REPORT',
+          dateRange: dateStr,
+          extraMeta: []
+        };
+    }
+  };
+
+  const currentReportMeta = getReportMetadata();
+
   return (
     <div className="flex flex-col space-y-6 font-sans">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {/* Printable Institutional Header (Rendered on Paper during Print) */}
+      <div className="hidden print:block printable-report">
+        <PrintHeader
+          title={currentReportMeta.title}
+          subtitle={currentReportMeta.subtitle}
+          session={filterSession}
+          dateRange={currentReportMeta.dateRange}
+          extraMeta={currentReportMeta.extraMeta}
+        />
+      </div>
 
       {/* Printable Receipt Modal */}
       <PrintReceiptModal
@@ -908,7 +993,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs print-table">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-3 text-center w-12">Sr. No.</th>
@@ -1045,7 +1130,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs print-table">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-3 text-center">S.No.</th>
@@ -1156,7 +1241,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs print-table">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-3 text-center">S.No.</th>
@@ -1258,7 +1343,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs print-table">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-4">Fee Category / Head</th>
@@ -1367,7 +1452,7 @@ const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs print-table">
                   <thead className="bg-warm-50/80 dark:bg-darkbg-base/80 text-[10px] font-black uppercase text-slate-500 border-b border-warm-200 dark:border-darkbg-border">
                     <tr>
                       <th className="py-3 px-3 text-center">S.No.</th>
@@ -1443,6 +1528,13 @@ const Reports = () => {
           </div>
         </div>
       )}
+
+      {/* Printable Institutional Footer (Rendered on Paper during Print) */}
+      <div className="hidden print:block">
+        <PrintFooter
+          customNote="This report is an official compilation extracted from Pankh Gold College Management ERP. Any discrepancy should be reported to the Accounts & Administrative section."
+        />
+      </div>
 
     </div>
   );

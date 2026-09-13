@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
+import PrintHeader from '../components/print/PrintHeader';
+import PrintFooter from '../components/print/PrintFooter';
 
 const ProfileCard = () => {
   const { id } = useParams();
@@ -1546,162 +1548,149 @@ const ProfileCard = () => {
 
       {/* PRINT-ONLY: COMPREHENSIVE STUDENT DOSSIER / FULL REPORT */}
       {student && (
-        <div className={`print-only font-sans p-8 text-black bg-white max-w-4xl mx-auto border-2 border-slate-300 p-10 ${printTarget === 'dossier' ? 'active-print' : 'hidden'}`}>
-          {/* College Header */}
-          <div className="text-center border-b-2 border-slate-800 pb-5 mb-6">
-            <h1 className="text-2xl font-extrabold uppercase tracking-wide">B.J.S. Rampuria Jain Law College, Bikaner</h1>
-            <p className="text-sm font-semibold text-slate-700 mt-1">Complete Student Record Dossier</p>
-            <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold mt-4">
-              <span>REGISTRATION ID: {student.registrationId}</span>
-              <span>ACADEMIC YEAR: {student.currentYear || '1st Year'} | SEMESTER: {student.currentSemester || 'Annual'}</span>
-              <span>PRINT DATE: {new Date().toLocaleDateString()}</span>
-            </div>
-          </div>
+        <div className={`print-only font-sans p-8 text-black bg-white max-w-4xl mx-auto border-2 border-slate-300 p-8 ${printTarget === 'dossier' ? 'active-print' : 'hidden'}`}>
+          {/* Institutional Masthead */}
+          <PrintHeader
+            title="OFFICIAL STUDENT COMPREHENSIVE DOSSIER"
+            session={student.academicSession || '2025-26'}
+            extraMeta={[
+              { label: 'Scholar ID', value: student.registrationId },
+              { label: 'Course', value: `${student.courseApplied || 'LL.B.'} (${student.currentYear || '1st Year'})` }
+            ]}
+          />
 
           {/* Personal Details Section */}
           <div className="mb-6">
             <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">1. Personal & Contact Details</h2>
-            <table className="w-full text-xs border border-collapse border-slate-200">
+            <table className="w-full text-xs border border-collapse border-slate-300 print-table">
               <tbody>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-200">Full Name</td>
-                  <td className="p-2 border border-slate-200">{student.fullName}</td>
-                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-200">SR No. / Roll No.</td>
-                  <td className="p-2 border border-slate-200">#{student.srNo || '-'}</td>
+                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-300">Full Name</td>
+                  <td className="p-2 border border-slate-300 font-bold uppercase">{student.fullName}</td>
+                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-300">SR No. / Roll No.</td>
+                  <td className="p-2 border border-slate-300 font-mono">#{student.srNo || '-'}</td>
                 </tr>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Father's Name</td>
-                  <td className="p-2 border border-slate-200">{student.fatherName}</td>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Mother's Name</td>
-                  <td className="p-2 border border-slate-200">{student.motherName}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Father's Name</td>
+                  <td className="p-2 border border-slate-300 uppercase">{student.fatherName}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Mother's Name</td>
+                  <td className="p-2 border border-slate-300 uppercase">{student.motherName}</td>
                 </tr>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Mobile Number</td>
-                  <td className="p-2 border border-slate-200">{student.mobileNumber}</td>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Alternate Contact</td>
-                  <td className="p-2 border border-slate-200">{student.alternateMobile || '-'}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Mobile Number</td>
+                  <td className="p-2 border border-slate-300 font-mono">{student.mobileNumber}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Alternate Contact</td>
+                  <td className="p-2 border border-slate-300 font-mono">{student.alternateMobile || '-'}</td>
                 </tr>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Email Address</td>
-                  <td className="p-2 border border-slate-200">{student.email || '-'}</td>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Date of Birth</td>
-                  <td className="p-2 border border-slate-200">{student.dateOfBirth}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Email Address</td>
+                  <td className="p-2 border border-slate-300">{student.email || '-'}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Date of Birth</td>
+                  <td className="p-2 border border-slate-300 font-mono">{student.dateOfBirth}</td>
                 </tr>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Category</td>
-                  <td className="p-2 border border-slate-200">{student.category}</td>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Gender</td>
-                  <td className="p-2 border border-slate-200">{student.gender}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Category</td>
+                  <td className="p-2 border border-slate-300 font-semibold">{student.category}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Gender</td>
+                  <td className="p-2 border border-slate-300">{student.gender}</td>
                 </tr>
                 <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Address</td>
-                  <td className="p-2 border border-slate-200" colSpan={3}>{student.address}, {student.city}, {student.state} - {student.pincode}</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Address</td>
+                  <td className="p-2 border border-slate-300" colSpan={3}>{student.address}, {student.city}, {student.state} - {student.pincode}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          {/* Academic Details Section */}
+          {/* Academic Profile */}
           <div className="mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">2. Qualifying Academic Records</h2>
-            <table className="w-full text-xs text-center border border-collapse border-slate-200">
+            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">2. Academic Enrollment Profile</h2>
+            <table className="w-full text-xs border border-collapse border-slate-300 print-table">
+              <tbody>
+                <tr>
+                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-300">Course Applied</td>
+                  <td className="p-2 border border-slate-300 font-bold">{student.courseApplied}</td>
+                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-300">Current Academic Session</td>
+                  <td className="p-2 border border-slate-300 font-bold text-slate-900">{student.academicSession || '2025-26'}</td>
+                </tr>
+                <tr>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Current Year & Semester</td>
+                  <td className="p-2 border border-slate-300">{student.currentYear || '1st Year'} ({student.currentSemester || 'Annual'})</td>
+                  <td className="p-2 font-bold bg-slate-50 border border-slate-300">Admission Status</td>
+                  <td className="p-2 border border-slate-300 font-bold text-emerald-800 uppercase">{student.status || 'Active On-Roll'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Academic Qualifications Section */}
+          <div className="mb-6">
+            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">3. Prior Qualifying Examinations</h2>
+            <table className="w-full text-xs border border-collapse border-slate-300 print-table">
               <thead>
-                <tr className="bg-slate-50 font-bold">
-                  <th className="p-2 border border-slate-200">Examination</th>
-                  <th className="p-2 border border-slate-200">Board / University</th>
-                  <th className="p-2 border border-slate-200">Passing Year</th>
-                  <th className="p-2 border border-slate-200">Obtained / Max Marks</th>
-                  <th className="p-2 border border-slate-200">Percentage</th>
+                <tr className="bg-slate-50 font-bold text-center">
+                  <th className="p-2 border border-slate-300">Exam Level</th>
+                  <th className="p-2 border border-slate-300">Board / University</th>
+                  <th className="p-2 border border-slate-300">Passing Year</th>
+                  <th className="p-2 border border-slate-300">Roll Number</th>
+                  <th className="p-2 border border-slate-300">Marks Obtained</th>
+                  <th className="p-2 border border-slate-300">Percentage</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="p-2 border border-slate-200 font-semibold">Class 10th</td>
-                  <td className="p-2 border border-slate-200">{student.board10 || '-'}</td>
-                  <td className="p-2 border border-slate-200">{student.passingYear10 || '-'}</td>
-                  <td className="p-2 border border-slate-200">-</td>
-                  <td className="p-2 border border-slate-200 font-bold">{student.marks10}%</td>
-                </tr>
-                <tr>
-                  <td className="p-2 border border-slate-200 font-semibold">Class 12th</td>
-                  <td className="p-2 border border-slate-200">{student.board12 || '-'}</td>
-                  <td className="p-2 border border-slate-200">{student.passingYear12 || '-'}</td>
-                  <td className="p-2 border border-slate-200">-</td>
-                  <td className="p-2 border border-slate-200 font-bold">{student.marks12}%</td>
-                </tr>
-                {student.qualExamName && (
+                {student.educationDetails && student.educationDetails.length > 0 ? (
+                  student.educationDetails.map((edu, idx) => (
+                    <tr key={idx} className="text-center">
+                      <td className="p-2 border border-slate-300 font-bold">{edu.examName || '-'}</td>
+                      <td className="p-2 border border-slate-300">{edu.boardUniversity || '-'}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{edu.passingYear || '-'}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{edu.rollNumber || '-'}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{edu.marksObtained ? `${edu.marksObtained}/${edu.maxMarks}` : '-'}</td>
+                      <td className="p-2 border border-slate-300 font-bold text-emerald-700">{edu.percentage ? `${edu.percentage}%` : '-'}</td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
-                    <td className="p-2 border border-slate-200 font-semibold">{student.qualExamName} (UG/Grad)</td>
-                    <td className="p-2 border border-slate-200">{student.qualUniversity || '-'}</td>
-                    <td className="p-2 border border-slate-200">{student.qualYear || '-'}</td>
-                    <td className="p-2 border border-slate-200">{student.qualObtainedMarks} / {student.qualMaxMarks}</td>
-                    <td className="p-2 border border-slate-200 font-bold">{student.qualPercentage}%</td>
+                    <td className="p-2 text-center text-slate-500 italic border border-slate-300" colSpan={6}>No qualifying exam records registered.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          {/* Verification & Admission Section */}
+          {/* Fee Payments Section */}
           <div className="mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">3. Verification & Seat Allotment Status</h2>
-            <table className="w-full text-xs border border-collapse border-slate-200">
-              <tbody>
-                <tr>
-                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-200">Document Verification</td>
-                  <td className="p-2 border border-slate-200 font-bold">{student.verificationStatus}</td>
-                  <td className="p-2 font-bold bg-slate-50 w-1/4 border border-slate-200">Verified By / Date</td>
-                  <td className="p-2 border border-slate-200">{student.verificationStatus === 'Verified' ? 'Admissions Committee' : '-'}</td>
-                </tr>
-                <tr>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Seat Allotment</td>
-                  <td className="p-2 border border-slate-200 font-bold">{student.seatAllotted ? 'Allotted' : 'Pending'}</td>
-                  <td className="p-2 font-bold bg-slate-50 border border-slate-200">Allotted Course</td>
-                  <td className="p-2 border border-slate-200 font-bold">{student.allottedCourse || student.courseApplied}</td>
-                </tr>
-                {student.remarks && (
-                  <tr>
-                    <td className="p-2 font-bold bg-slate-50 border border-slate-200">Verification Remarks</td>
-                    <td className="p-2 border border-slate-200" colSpan={3}>{student.remarks}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Fees Ledger Section */}
-          <div className="mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">4. Fees Collection Installment Ledger</h2>
-            {paymentsList.length === 0 ? (
-              <p className="text-xs text-slate-500 italic">No fee installments collected for this student.</p>
+            <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">4. Fee Accounts & Transaction Receipts</h2>
+            {!feeHistory || feeHistory.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">No fee payment receipts registered.</p>
             ) : (
-              <table className="w-full text-xs border border-collapse border-slate-200">
+              <table className="w-full text-xs border border-collapse border-slate-300 print-table">
                 <thead>
                   <tr className="bg-slate-50 font-bold text-center">
-                    <th className="p-2 border border-slate-200 text-left">Receipt No</th>
-                    <th className="p-2 border border-slate-200">Installment Name</th>
-                    <th className="p-2 border border-slate-200">Year / Sem</th>
-                    <th className="p-2 border border-slate-200">Payment Date</th>
-                    <th className="p-2 border border-slate-200">Payment Mode</th>
-                    <th className="p-2 border border-slate-200">Transaction No</th>
-                    <th className="p-2 border border-slate-200 text-right">Amount Paid</th>
+                    <th className="p-2 border border-slate-300 text-left">Receipt No</th>
+                    <th className="p-2 border border-slate-300">Payment Date</th>
+                    <th className="p-2 border border-slate-300">Year / Sem</th>
+                    <th className="p-2 border border-slate-300">Installment Type</th>
+                    <th className="p-2 border border-slate-300">Mode</th>
+                    <th className="p-2 border border-slate-300">Ref / Txn No</th>
+                    <th className="p-2 border border-slate-300 text-right">Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paymentsList.map(payment => (
-                    <tr key={payment._id} className="text-center">
-                      <td className="p-2 border border-slate-200 text-left font-mono">{payment.receiptNo}</td>
-                      <td className="p-2 border border-slate-200">{payment.installmentName}</td>
-                      <td className="p-2 border border-slate-200">{payment.academicYear} - {payment.semester}</td>
-                      <td className="p-2 border border-slate-200">{payment.paymentDate}</td>
-                      <td className="p-2 border border-slate-200">{payment.paymentMode}</td>
-                      <td className="p-2 border border-slate-200 font-mono">{payment.transactionNo || '-'}</td>
-                      <td className="p-2 border border-slate-200 text-right font-bold">₹{payment.amountPaid?.toLocaleString()}</td>
+                  {feeHistory.map(fee => (
+                    <tr key={fee._id} className="text-center">
+                      <td className="p-2 border border-slate-300 text-left font-mono font-bold">{fee.receiptNo}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{fee.paymentDate}</td>
+                      <td className="p-2 border border-slate-300">{fee.academicYear} - {fee.semester}</td>
+                      <td className="p-2 border border-slate-300">{fee.installmentName}</td>
+                      <td className="p-2 border border-slate-300 uppercase font-semibold">{fee.paymentMode}</td>
+                      <td className="p-2 border border-slate-300 font-mono text-[10px]">{fee.transactionNo || '-'}</td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-bold">₹{(fee.amountPaid || 0).toLocaleString('en-IN')}</td>
                     </tr>
                   ))}
-                  <tr className="bg-slate-50 font-bold">
-                    <td className="p-2 border border-slate-200 text-right" colSpan={6}>Total Paid Fees</td>
-                    <td className="p-2 border border-slate-200 text-right font-black text-emerald-700">₹{totalFeesPaid.toLocaleString()}</td>
+                  <tr className="bg-slate-100 font-bold">
+                    <td className="p-2 border border-slate-300 text-right" colSpan={6}>Total Paid Fees:</td>
+                    <td className="p-2 border border-slate-300 text-right font-black text-emerald-800">₹{totalFeesPaid.toLocaleString('en-IN')}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1709,39 +1698,39 @@ const ProfileCard = () => {
           </div>
 
           {/* Library History Section */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">5. Library Checkout & Fine Ledger</h2>
             {!issuesList || issuesList.length === 0 ? (
               <p className="text-xs text-slate-500 italic">No library issues registered for this student.</p>
             ) : (
-              <table className="w-full text-xs border border-collapse border-slate-200">
+              <table className="w-full text-xs border border-collapse border-slate-300 print-table">
                 <thead>
                   <tr className="bg-slate-50 font-bold text-center">
-                    <th className="p-2 border border-slate-200 text-left">Accession No / Book</th>
-                    <th className="p-2 border border-slate-200">Issue Date</th>
-                    <th className="p-2 border border-slate-200">Due Date</th>
-                    <th className="p-2 border border-slate-200">Return Date</th>
-                    <th className="p-2 border border-slate-200">Status</th>
-                    <th className="p-2 border border-slate-200 text-right">Fine Charged</th>
+                    <th className="p-2 border border-slate-300 text-left">Accession No / Book</th>
+                    <th className="p-2 border border-slate-300">Issue Date</th>
+                    <th className="p-2 border border-slate-300">Due Date</th>
+                    <th className="p-2 border border-slate-300">Return Date</th>
+                    <th className="p-2 border border-slate-300">Status</th>
+                    <th className="p-2 border border-slate-300 text-right">Fine Charged</th>
                   </tr>
                 </thead>
                 <tbody>
                   {issuesList.map(issue => (
                     <tr key={issue._id} className="text-center">
-                      <td className="p-2 border border-slate-200 text-left">
-                        <div className="font-bold">[{issue.book?.bookNo || '-'}]</div>
+                      <td className="p-2 border border-slate-300 text-left">
+                        <div className="font-bold font-mono">[{issue.book?.bookNo || '-'}]</div>
                         <div>{issue.book?.title || '-'}</div>
                       </td>
-                      <td className="p-2 border border-slate-200">{issue.issueDate}</td>
-                      <td className="p-2 border border-slate-200">{issue.dueDate}</td>
-                      <td className="p-2 border border-slate-200">{issue.returnDate || 'Not Returned'}</td>
-                      <td className="p-2 border border-slate-200">
+                      <td className="p-2 border border-slate-300 font-mono">{issue.issueDate}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{issue.dueDate}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{issue.returnDate || 'Not Returned'}</td>
+                      <td className="p-2 border border-slate-300">
                         <span className={`font-bold uppercase text-[9px] ${
-                          issue.status === 'Returned' ? 'text-emerald-600' :
-                          issue.status === 'Lost' ? 'text-rose-600' : 'text-amber-600'
+                          issue.status === 'Returned' ? 'text-emerald-700' :
+                          issue.status === 'Lost' ? 'text-rose-700' : 'text-amber-700'
                         }`}>{issue.status}</span>
                       </td>
-                      <td className="p-2 border border-slate-200 text-right font-bold">₹{issue.fineAmount || 0}</td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-bold">₹{issue.fineAmount || 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1749,21 +1738,15 @@ const ProfileCard = () => {
             )}
           </div>
 
-          {/* Signature Area */}
-          <div className="flex justify-between items-center mt-12 pt-8 border-t border-slate-300">
-            <div className="text-center w-1/3">
-              <div className="border-b border-slate-400 h-8"></div>
-              <div className="text-[10px] font-bold mt-2 uppercase tracking-wide">Dealing Assistant</div>
-            </div>
-            <div className="text-center w-1/3">
-              <div className="border-b border-slate-400 h-8"></div>
-              <div className="text-[10px] font-bold mt-2 uppercase tracking-wide">Librarian</div>
-            </div>
-            <div className="text-center w-1/3">
-              <div className="border-b border-slate-400 h-8"></div>
-              <div className="text-[10px] font-bold mt-2 uppercase tracking-wide">Principal / Coordinator</div>
-            </div>
-          </div>
+          {/* Institutional Print Footer */}
+          <PrintFooter
+            signatories={[
+              { title: 'Dealing Assistant', subtitle: 'Clerk / Data Entry' },
+              { title: 'Librarian & Accounts', subtitle: 'Verified & Cleared' },
+              { title: 'Principal / Coordinator', subtitle: 'B.J.S. Rampuria Jain Law College' }
+            ]}
+            customNote="Official student record dossier extracted from Pankh Gold College Management ERP."
+          />
         </div>
       )}
 

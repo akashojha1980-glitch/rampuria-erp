@@ -5,12 +5,88 @@ const FeePayment = require('./models/FeePayment');
 const Expense = require('./models/Expense');
 const Book = require('./models/Book');
 const BookIssue = require('./models/BookIssue');
+const SuperAdmin = require('./models/SuperAdmin');
+const TenantCollege = require('./models/TenantCollege');
+const TenantLicense = require('./models/TenantLicense');
 const { Op } = require('sequelize');
 
 const seedData = async (force = false) => {
   console.log(`[Seeding] Starting database seed check (force = ${force})...`);
 
   try {
+    // 0. Seed Master Super Admin (Software Owner)
+    const superAdminCount = await SuperAdmin.count();
+    if (superAdminCount === 0) {
+      await SuperAdmin.create({
+        username: 'superadmin',
+        password: 'SuperAdmin@2026',
+        name: 'Enterprise Master Admin',
+        email: 'provider@collegeerp.com',
+        phone: '+91 98765 43210',
+        securityQuestion: 'What is your software company master key code?',
+        securityAnswer: 'ERP2026MASTER',
+        role: 'MasterSuperAdmin',
+        isActive: true
+      });
+      console.log('[Seeding] ✓ Master Super Admin created (superadmin / SuperAdmin@2026)');
+    }
+
+    // 0.1 Seed Default Registered Tenant College (BJS Rampuria Law College)
+    const collegeCount = await TenantCollege.count();
+    if (collegeCount === 0) {
+      const defaultCollege = await TenantCollege.create({
+        clientId: 'CLI-2026-001',
+        collegeCode: 'BJS-01',
+        collegeName: 'B.J.S. Rampuria Jain Law College',
+        productType: 'College ERP',
+        address: 'Vyapar Mandal Path, Near Rampuria Haveli',
+        city: 'Bikaner',
+        state: 'Rajasthan',
+        mobileNumber: '0151-2200123',
+        email: 'info@rampurialaw.ac.in',
+        website: 'https://rampurialawcollege.ac.in',
+        principalName: 'Dr. Principal Office',
+        principalMobile: '+91 98290 12345',
+        principalEmail: 'principal@rampurialaw.ac.in',
+        installationDate: '2026-01-01',
+        packageType: 'Premium',
+        status: 'Active',
+        licenseKey: 'RAMP-7B9A-4C2E-8F1D-2026',
+        licenseStartDate: '2026-01-01',
+        licenseExpiryDate: '2027-12-31',
+        dbServer: '127.0.0.1',
+        dbPort: 1433,
+        dbName: 'admission_db',
+        dbUsername: 'sa',
+        dbPasswordEncrypted: 'BjsRampuria@2026',
+        installedModules: JSON.stringify([
+          'admission', 'registration', 'verification', 'fees', 
+          'examination', 'results', 'promotion', 'library', 
+          'staff', 'reports', 'id_card', 'accounts'
+        ]),
+        amcAmount: 25000,
+        totalPaid: 75000,
+        notes: 'Flagship Law College Installation'
+      });
+
+      await TenantLicense.create({
+        tenantId: defaultCollege.id,
+        collegeCode: 'BJS-01',
+        collegeName: 'B.J.S. Rampuria Jain Law College',
+        licenseKey: 'RAMP-7B9A-4C2E-8F1D-2026',
+        actionType: 'Initial',
+        packageType: 'Premium',
+        prevExpiryDate: null,
+        newExpiryDate: '2027-12-31',
+        amount: 75000,
+        invoiceNo: 'INV-100001',
+        performedBy: 'System Auto-Seed',
+        notes: 'Initial production system onboarding'
+      });
+
+      console.log('[Seeding] ✓ Default Tenant College seeded (B.J.S. Rampuria Jain Law College)');
+    }
+
     // 1. Seed Admin
     const adminCount = await Admin.count();
     if (adminCount === 0) {

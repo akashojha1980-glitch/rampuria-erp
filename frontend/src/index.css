@@ -75,47 +75,97 @@
   @apply bg-white/80 dark:bg-darkbg-surface/85 backdrop-blur-md border border-warm-200/50 dark:border-darkbg-border/60 shadow-elegant dark:shadow-elegant-dark;
 }
 
-/* ─── OFFICIAL A4 PRINT STYLES ─── */
+/* ─── OFFICIAL A4 INSTITUTIONAL PRINT STYLES ─── */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 6mm 8mm;
+    margin: 8mm 10mm;
   }
   
   html, body {
     background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #000000 !important;
-    font-size: 11px !important;
+    font-size: 10.5px !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   
-  aside, header, .no-print, nav, button, .cursor-glow, .animate-float-screen1, .animate-float-screen2, .animate-float-screen3 {
+  /* Suppress all screen-only UI components */
+  aside, header, footer, .no-print, nav, button, .cursor-glow, 
+  .animate-float-screen1, .animate-float-screen2, .animate-float-screen3,
+  .toast, [role="tooltip"], .sidebar, .navbar {
     display: none !important;
   }
   
-  #root, #root > div, #root > div > div, main {
+  /* Remove layout paddings during print */
+  #root, #root > div, #root > div > div, main, .pl-72, .lg\:pl-\[19rem\], .md\:pl-72 {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     display: block !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
-  .printable-marksheet, .printable-dossier {
+  /* Table styling rules to prevent cutting rows across pages */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  th, td {
+    color: #000000 !important;
+  }
+
+  .print-table th, .print-table td {
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .printable-marksheet, .printable-dossier, .printable-report, .printable-receipt {
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
     width: 100% !important;
     background: #ffffff !important;
     color: #000000 !important;
-    page-break-inside: avoid !important;
   }
 
   .print-page-break {
     page-break-after: always;
+    break-after: page;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Force background colors to print on summary badges and headers */
+  .bg-slate-100 {
+    background-color: #f1f5f9 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+  .bg-slate-50 {
+    background-color: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
   }
 }
 

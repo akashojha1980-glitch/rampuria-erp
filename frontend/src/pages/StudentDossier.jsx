@@ -9,6 +9,8 @@ import {
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 import SearchableStudentSelect from '../components/SearchableStudentSelect';
+import PrintHeader from '../components/print/PrintHeader';
+import PrintFooter from '../components/print/PrintFooter';
 
 const StudentDossier = () => {
   const { id } = useParams();
@@ -528,20 +530,15 @@ const StudentDossier = () => {
               ═══════════════════════════════════════════════════════════════ */}
           <div className="hidden print:block printable-dossier w-full text-black font-sans leading-tight">
             
-            {/* Header Box */}
-            <div className="border-2 border-black p-2 text-center mb-2 bg-slate-50">
-              <h1 className="text-sm font-black uppercase tracking-wider font-serif">
-                B.J.S. RAMPURIA JAIN LAW COLLEGE, BIKANER
-              </h1>
-              <p className="text-[10px] font-semibold text-slate-700">
-                (Affiliated to Maharaja Ganga Singh University, Bikaner & Bar Council of India)
-              </p>
-              <div className="border-t border-black my-1"></div>
-              <div className="flex justify-between items-center text-[10.5px] font-black uppercase tracking-wide">
-                <span>OFFICIAL STUDENT 360° MASTER RECORD & DOSSIER</span>
-                <span className="font-mono">ACADEMIC SESSION: {student.academicSession || '2025-2026'}</span>
-              </div>
-            </div>
+            {/* Standard Institutional Masthead */}
+            <PrintHeader
+              title="OFFICIAL STUDENT 360° MASTER RECORD & ADMISSION DOSSIER"
+              session={student.academicSession || '2025-2026'}
+              extraMeta={[
+                { label: 'Scholar ID', value: student.registrationId },
+                { label: 'Course', value: student.courseApplied }
+              ]}
+            />
 
             {/* Profile & Biodata Combined Grid */}
             <div className="border border-black mb-2 p-1.5 flex gap-2 items-start">
@@ -756,26 +753,15 @@ const StudentDossier = () => {
               </div>
             </div>
 
-            {/* Official Signatures Row */}
-            <div className="border-t-2 border-black pt-6 grid grid-cols-3 gap-6 text-center text-[10px] font-black text-black">
-              <div>
-                <div className="border-t border-slate-700 pt-1">ERP Data Clerk</div>
-                <div className="text-[8px] font-normal text-slate-500">Record Entered & Checked</div>
-              </div>
-              <div>
-                <div className="border-t border-slate-700 pt-1">Administrative Officer</div>
-                <div className="text-[8px] font-normal text-slate-500">Academic & Fees Verified</div>
-              </div>
-              <div>
-                <div className="border-t border-slate-700 pt-1">Principal Approval & Seal</div>
-                <div className="text-[8px] font-normal text-slate-500">B.J.S. Rampuria Jain Law College</div>
-              </div>
-            </div>
-
-            {/* Footer Watermark */}
-            <div className="mt-2 text-center text-[7.5px] text-slate-400 font-mono">
-              Generated automatically via B.J.S. Rampuria Jain Law College ERP System | Document Verification Code: {student._id} | Page 1 of 1
-            </div>
+            {/* Official Institutional Footer */}
+            <PrintFooter
+              signatories={[
+                { title: 'ERP Data Clerk', subtitle: 'Entered & Checked' },
+                { title: 'Administrative Officer', subtitle: 'Academic & Fees Verified' },
+                { title: 'Principal / Authorized Officer', subtitle: 'Approved & Sealed' }
+              ]}
+              customNote="Official student record dossier extracted from Pankh Gold College Management ERP."
+            />
 
           </div>
         </>

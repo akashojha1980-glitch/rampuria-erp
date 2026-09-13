@@ -7,6 +7,8 @@ import {
   GraduationCap, BookOpen, FileText, Sparkles, X, ChevronRight, Download
 } from 'lucide-react';
 import SearchableStudentSelect from '../components/SearchableStudentSelect';
+import PrintHeader from '../components/print/PrintHeader';
+import PrintFooter from '../components/print/PrintFooter';
 
 const Results = () => {
   const { activeSession, sessions } = useSession();
@@ -1261,40 +1263,30 @@ const Results = () => {
             {/* Printable Marksheet Container */}
             <div id="printable-marksheet-card" className="p-8 bg-white text-slate-900 printable-marksheet font-serif space-y-6">
               
-              {/* College Header */}
-              <div className="text-center border-b-2 border-brand-500 pb-4">
-                <div className="w-14 h-14 rounded-full bg-brand-600 text-white mx-auto flex items-center justify-center font-bold text-xl shadow-md mb-2">
-                  <GraduationCap className="w-8 h-8" />
-                </div>
-                <h1 className="text-xl md:text-2xl font-bold tracking-tight uppercase text-brand-600">
-                  B.J.S. Rampuria Jain Law College
-                </h1>
-                <p className="text-xs font-sans text-slate-600 uppercase tracking-widest font-semibold mt-0.5">
-                  Affiliated to Dr. Bhimrao Ambedkar Law University, Jaipur (Raj.)
-                </p>
-                <p className="text-[11px] font-sans text-slate-500">
-                  Sector-5, J.N.V. Colony, Bikaner - 334001 | Phone: 0151-2230132
-                </p>
-                <div className="inline-block mt-3 px-6 py-1 bg-brand-500/10 border border-brand-500/30 rounded-full">
-                  <span className="text-xs font-bold font-sans text-brand-600 uppercase tracking-wider">
-                    STATEMENT OF MARKS / GRADE CARD • {selectedMarksheet.examMonthYear || 'MAY 2026'}
-                  </span>
-                </div>
-              </div>
+              {/* Standard Institutional Masthead */}
+              <PrintHeader
+                title={`STATEMENT OF MARKS / GRADE CARD • ${selectedMarksheet.examMonthYear || 'MAY 2026'}`}
+                session={selectedMarksheet.academicSession}
+                extraMeta={[
+                  { label: 'Roll No', value: selectedMarksheet.rollNo },
+                  { label: 'College Reg ID', value: selectedMarksheet.registrationId },
+                  { label: 'Course', value: `${selectedMarksheet.course} - ${selectedMarksheet.year}` }
+                ]}
+              />
 
               {/* Student Info Card */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-xs font-sans bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-xs font-sans bg-slate-50 p-4 rounded-xl border border-slate-300">
                 <div>
                   <span className="text-[10px] text-slate-500 font-bold uppercase block">Student Name:</span>
-                  <span className="font-bold text-slate-900 text-sm">{selectedMarksheet.studentName}</span>
+                  <span className="font-bold text-slate-900 text-sm uppercase">{selectedMarksheet.studentName}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 font-bold uppercase block">Father's Name:</span>
-                  <span className="font-bold text-slate-900">{selectedMarksheet.fatherName || 'N/A'}</span>
+                  <span className="font-bold text-slate-900 uppercase">{selectedMarksheet.fatherName || 'N/A'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 font-bold uppercase block">University Roll No:</span>
-                  <span className="font-mono font-bold text-brand-600 text-sm">{selectedMarksheet.rollNo}</span>
+                  <span className="font-mono font-black text-brand-600 text-sm">{selectedMarksheet.rollNo}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-500 font-bold uppercase block">College Reg ID:</span>
@@ -1311,27 +1303,27 @@ const Results = () => {
               </div>
 
               {/* Marks Table */}
-              <div className="border border-slate-300 rounded-lg overflow-hidden font-sans">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+              <div className="border border-slate-400 rounded-lg overflow-hidden font-sans">
+                <table className="w-full text-xs text-left print-table">
+                  <thead className="bg-slate-100 text-slate-900 font-bold border-b border-slate-400">
                     <tr>
-                      <th className="p-3 w-28">Paper Code</th>
-                      <th className="p-3">Paper Title / Subject</th>
-                      <th className="p-3 text-center w-24">Max Marks</th>
-                      <th className="p-3 text-center w-24">Min Pass</th>
-                      <th className="p-3 text-center w-28">Marks Obtained</th>
-                      <th className="p-3 text-center w-20">Result</th>
+                      <th className="p-2.5 w-28">Paper Code</th>
+                      <th className="p-2.5">Paper Title / Subject</th>
+                      <th className="p-2.5 text-center w-24">Max Marks</th>
+                      <th className="p-2.5 text-center w-24">Min Pass</th>
+                      <th className="p-2.5 text-center w-28">Marks Obtained</th>
+                      <th className="p-2.5 text-center w-20">Result</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-slate-300">
                     {(selectedMarksheet.subjects || []).map((sub, i) => (
                       <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                        <td className="p-3 font-mono font-bold text-slate-700">{sub.code}</td>
-                        <td className="p-3 font-medium text-slate-800">{sub.name}</td>
-                        <td className="p-3 text-center font-mono">{sub.maxMarks}</td>
-                        <td className="p-3 text-center font-mono">{sub.minMarks}</td>
-                        <td className="p-3 text-center font-mono font-bold text-slate-900">{sub.totalMarks || sub.obtainedMarks || (Number(sub.theoryMarks || 0) + Number(sub.practicalMarks || 0))}</td>
-                        <td className="p-3 text-center">
+                        <td className="p-2.5 font-mono font-bold text-slate-700">{sub.code}</td>
+                        <td className="p-2.5 font-medium text-slate-800">{sub.name}</td>
+                        <td className="p-2.5 text-center font-mono">{sub.maxMarks}</td>
+                        <td className="p-2.5 text-center font-mono">{sub.minMarks}</td>
+                        <td className="p-2.5 text-center font-mono font-bold text-slate-900">{sub.totalMarks || sub.obtainedMarks || (Number(sub.theoryMarks || 0) + Number(sub.practicalMarks || 0))}</td>
+                        <td className="p-2.5 text-center">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             (sub.status === 'Pass' || Number(sub.obtainedMarks || sub.totalMarks || 0) >= 36) ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                           }`}>
@@ -1341,13 +1333,13 @@ const Results = () => {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
+                  <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-900">
                     <tr>
-                      <td colSpan="2" className="p-3 text-right uppercase tracking-wider text-slate-700">Grand Total:</td>
-                      <td className="p-3 text-center font-mono">{selectedMarksheet.totalMaxMarks}</td>
-                      <td className="p-3 text-center">--</td>
-                      <td className="p-3 text-center font-mono text-brand-600 text-sm">{selectedMarksheet.totalObtainedMarks}</td>
-                      <td className="p-3 text-center">
+                      <td colSpan="2" className="p-2.5 text-right uppercase tracking-wider text-slate-800">Grand Total:</td>
+                      <td className="p-2.5 text-center font-mono">{selectedMarksheet.totalMaxMarks}</td>
+                      <td className="p-2.5 text-center">--</td>
+                      <td className="p-2.5 text-center font-mono text-brand-600 text-sm">{selectedMarksheet.totalObtainedMarks}</td>
+                      <td className="p-2.5 text-center">
                         <span className="text-emerald-700 font-bold">{selectedMarksheet.resultStatus}</span>
                       </td>
                     </tr>
@@ -1356,7 +1348,7 @@ const Results = () => {
               </div>
 
               {/* Result Summary & Division Block */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-sans bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-sans bg-slate-50 p-4 rounded-xl border border-slate-300">
                 <div className="text-center p-2">
                   <span className="text-[10px] font-bold text-slate-500 uppercase block">Percentage:</span>
                   <span className="text-lg font-bold text-brand-600">{selectedMarksheet.percentage}%</span>
@@ -1375,24 +1367,15 @@ const Results = () => {
                 </div>
               </div>
 
-              {/* Signatures & Seal Box */}
-              <div className="pt-12 grid grid-cols-3 gap-8 text-center text-xs font-sans border-t border-slate-200 mt-8">
-                <div>
-                  <div className="h-10 border-b border-dashed border-slate-400 mx-6 mb-2"></div>
-                  <span className="font-bold text-slate-700 block">Checked By (Verifier)</span>
-                  <span className="text-[10px] text-slate-400">Exam Cell Assistant</span>
-                </div>
-                <div>
-                  <div className="w-16 h-16 border border-slate-300 rounded-full mx-auto flex items-center justify-center text-[9px] text-slate-400 uppercase tracking-tighter">
-                    COLLEGE SEAL
-                  </div>
-                </div>
-                <div>
-                  <div className="h-10 border-b border-dashed border-slate-400 mx-6 mb-2"></div>
-                  <span className="font-bold text-slate-900 block">Principal / Dean</span>
-                  <span className="text-[10px] text-slate-500">B.J.S. Rampuria Jain Law College</span>
-                </div>
-              </div>
+              {/* Standard Institutional Print Footer */}
+              <PrintFooter
+                signatories={[
+                  { title: 'Checked By (Verifier)', subtitle: 'Exam Cell Assistant' },
+                  { title: 'Controller of Examinations', subtitle: 'Verified & Tabulated' },
+                  { title: 'Principal / Dean', subtitle: 'B.J.S. Rampuria Jain Law College' }
+                ]}
+                customNote="Official Statement of Marks generated from Pankh Gold College Management ERP. For official transcripts or verification, contact college registrar."
+              />
 
             </div>
           </div>

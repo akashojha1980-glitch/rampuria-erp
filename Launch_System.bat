@@ -24,7 +24,15 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000 ^| findstr LISTENING') 
     taskkill /f /pid %%a >nul 2>&1
 )
 
-echo  [1/3] Starting backend server...
+:: Detect LAN IPv4 Address
+set "LAN_IP="
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address"') do (
+    for /f "tokens=1 delims= " %%b in ("%%a") do (
+        echo %%b | findstr /v "169.254." >nul && if not defined LAN_IP set "LAN_IP=%%b"
+    )
+)
+
+echo  [1/3] Starting backend server on all network interfaces (0.0.0.0:5000)...
 echo.
 
 :: Start server.js in the backend directory safely (handles spaces in path)
@@ -33,15 +41,26 @@ start "BJS Rampuria Jain Law College Server" /D "%~dp0backend" cmd /k "node serv
 :: Wait for 4 seconds using ping
 ping 127.0.0.1 -n 5 >nul
 
-echo  [3/3] Opening College ERP Portal in your browser...
+echo  [2/3] Opening College ERP Portal in your browser...
 start http://localhost:5000
 
 echo.
 echo  ============================================================
-echo   Server is running at: http://localhost:5000
-echo   Admin Username : admin
-echo   Admin Password : admin123
+echo   SERVER IS LIVE & ACCESSIBLE ON YOUR NETWORK:
+echo.
+echo   💻 This PC Access   : http://localhost:5000
+if defined LAN_IP (
+    echo   📱 Phone / Other PC : http://%LAN_IP%:5000
+) else (
+    echo   📱 Phone / Other PC : http://^<YOUR_WIFI_IP^>:5000
+)
+echo.
+echo   🔑 Admin Username   : admin
+echo   🔑 Admin Password   : admin123
 echo  ============================================================
+echo.
+echo  NOTE: Ensure both devices are on the same Wi-Fi network.
+echo  If phone cannot connect, run 'Allow_LAN_Firewall.bat' as Admin once.
 echo.
 echo  Keep the server window open while using the ERP system.
 echo  Press any key to close this launcher window...

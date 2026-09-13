@@ -16,12 +16,26 @@ if (typeof AbortSignal.any !== 'function') {
   };
 }
 
+const path = require('path');
+const fs = require('fs');
+
+// Support loading .env from next to exe or inside directory
+const envPaths = [
+  path.join(path.dirname(process.execPath), '.env'),
+  path.join(__dirname, '.env'),
+  path.join(process.cwd(), '.env'),
+  path.join(process.cwd(), 'backend', '.env')
+];
+for (const envPath of envPaths) {
+  if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    break;
+  }
+}
 require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 const { sequelize, connectDB } = require('./config/db');
 
 
@@ -68,24 +82,51 @@ app.use('/api/fees',      require('./routes/fees'));
 app.use('/api/expenses',  require('./routes/expenses'));
 app.use('/api/library',   require('./routes/library'));
 app.use('/api/reports',   require('./routes/reports'));
-app.use('/api/sessions',  require('./routes/sessions'));
-app.use('/api/results',   require('./routes/results'));
-app.use('/api/settings',  require('./routes/settings'));
+app.use('/api/sessions',    require('./routes/sessions'));
+app.use('/api/results',     require('./routes/results'));
+app.use('/api/settings',    require('./routes/settings'));
+app.use('/api/payment-gateway', require('./routes/paymentGateway'));
+app.use('/api/superadmin',  require('./routes/superAdmin'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'BJS Rampuria Jain Law College ERP server is running on MS SQL Server!', time: new Date() });
+  res.json({ 
+    status: isDbConnected ? 'ok' : 'disconnected', 
+    connected: isDbConnected, 
+    message: isDbConnected ? 'BJS Rampuria Jain Law College ERP server is running on MS SQL Server!' : 'Database connecting...', 
+    time: new Date() 
+  });
 });
 
 // Serve React Frontend (production build)
-const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+let frontendPath = path.join(__dirname, 'public');
+if (!fs.existsSync(path.join(frontendPath, 'index.html'))) {
+  frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+}
+if (!fs.existsSync(path.join(frontendPath, 'index.html'))) {
+  frontendPath = path.join(path.dirname(process.execPath), 'public');
+}
+if (!fs.existsSync(path.join(frontendPath, 'index.html'))) {
+  frontendPath = path.join(process.cwd(), 'frontend', 'dist');
+}
+
 const indexHtmlPath = path.join(frontendPath, 'index.html');
 
 if (fs.existsSync(indexHtmlPath)) {
+  console.log(`[Server] Serving frontend UI from: ${frontendPath}`);
   app.use(express.static(frontendPath));
   // React SPA fallback
   app.get('*', (req, res) => {
-    res.sendFile(indexHtmlPath);
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ message: 'API route not found' });
+    }
+    try {
+      const html = fs.readFileSync(indexHtmlPath, 'utf8');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (e) {
+      res.sendFile(indexHtmlPath);
+    }
   });
 } else {
   console.log('[Server] Frontend build not found. Running in API-only mode.');
@@ -112,6 +153,30 @@ const connectAndSyncDB = async () => {
       console.log('[MSSQL] Database schemas synchronized successfully.');
       
       // Auto-migration for schema extensions
+      const addColSafe = async (table, col, sqlDef) => {
+        try {
+          const checkQuery = `SELECT COUNT(*) as count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${table}' AND COLUMN_NAME = '${col}'`;
+          const [res] = await sequelize.query(checkQuery, { type: sequelize.QueryTypes.SELECT });
+          const exists = (res && (res.count > 0 || res.COUNT > 0));
+          if (!exists) {
+            await sequelize.query(`ALTER TABLE [${table}] ADD [${col}] ${sqlDef};`);
+            console.log(`[Migration] Added column ${table}.${col}`);
+          }
+        } catch (e) {}
+      };
+
+      await addColSafe('Courses', 'schemeType', "NVARCHAR(255) DEFAULT 'Semester'");
+      await addColSafe('Courses', 'academicYear', "NVARCHAR(255) DEFAULT '1st Year'");
+      await addColSafe('Courses', 'semester', "NVARCHAR(255) DEFAULT 'I & II Semester'");
+      await addColSafe('Courses', 'firstInstallment', "FLOAT DEFAULT 0");
+      await addColSafe('Courses', 'firstInstallmentDesc', "NVARCHAR(255) DEFAULT 'at the time of Admission'");
+      await addColSafe('Courses', 'secondInstallment', "FLOAT DEFAULT 0");
+      await addColSafe('Courses', 'secondInstallmentDesc', "NVARCHAR(255) DEFAULT 'at the time of Exam Form'");
+      await addColSafe('Courses', 'totalFee', "FLOAT DEFAULT 0");
+      await addColSafe('Courses', 'cautionMoney', "FLOAT DEFAULT 300");
+      await addColSafe('Courses', 'provisionalPromotionFee', "FLOAT DEFAULT 300");
+      await addColSafe('Courses', 'isActive', "BIT DEFAULT 1");
+
       try {
         await sequelize.query('ALTER TABLE Students ADD currentYear NVARCHAR(255) NULL');
         console.log('[Migration] Added currentYear column to Students table.');
@@ -181,13 +246,41 @@ const connectAndSyncDB = async () => {
   }
 };
 
+const getLanIps = () => {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  const lanIps = [];
+  for (const ifName in interfaces) {
+    for (const iface of interfaces[ifName]) {
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
+        lanIps.push({ ifName, address: iface.address });
+      }
+    }
+  }
+  lanIps.sort((a, b) => {
+    const aScore = (a.address.startsWith('192.168.') ? 2 : (a.address.startsWith('10.') ? 2 : 1)) +
+                  (/wi-?fi|ethernet|wlan/i.test(a.ifName) ? 2 : 0);
+    const bScore = (b.address.startsWith('192.168.') ? 2 : (b.address.startsWith('10.') ? 2 : 1)) +
+                  (/wi-?fi|ethernet|wlan/i.test(b.ifName) ? 2 : 0);
+    return bScore - aScore;
+  });
+  return lanIps;
+};
+
 const startServer = () => {
-  // Start listening on network port immediately
-  app.listen(PORT, () => {
+  // Start listening on network port immediately on all network interfaces (0.0.0.0)
+  app.listen(PORT, '0.0.0.0', () => {
+    const lanIps = getLanIps();
+    const primaryLanIp = lanIps.length > 0 ? lanIps[0].address : null;
+
     console.log('\n==================================================================');
-    console.log(`  ✅  BJS Rampuria Jain Law College ERP — Running on http://localhost:${PORT}`);
-    console.log(`  📁  Database: Microsoft SQL Server 2008 (MSSQL)`);
-    console.log(`  🔑  Login: admin / admin123 (created on database connect success)`);
+    console.log(`  ✅  BJS Rampuria Jain Law College ERP — Server Live!`);
+    console.log(`  💻  Local Access   : http://localhost:${PORT}`);
+    if (primaryLanIp) {
+      console.log(`  📱  LAN Access (Phone/Other PC) : http://${primaryLanIp}:${PORT}`);
+    }
+    console.log(`  📁  Database       : Microsoft SQL Server 2008 (MSSQL)`);
+    console.log(`  🔑  Login          : admin / admin123`);
     console.log('==================================================================\n');
 
     // Automatically open browser on boot in production / packaged environment

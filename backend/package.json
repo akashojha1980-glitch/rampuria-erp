@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "College_Admission_ERP",
   "version": "1.0.0",
   "description": "Backend API for College Admission Management Desktop System",
   "main": "server.js",
@@ -11,8 +11,10 @@
   },
   "pkg": {
     "assets": [
+      "public/**/*",
       "uploads/**/*",
-      "../frontend/dist/**/*"
+      "data/**/*",
+      "database/**/*"
     ],
     "targets": [
       "node18-win-x64"

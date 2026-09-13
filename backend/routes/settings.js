@@ -141,9 +141,6 @@ router.delete('/documents/:key', protect, async (req, res) => {
 });
 
 // ─── REGISTRATION NUMBER SEQUENCE SETTINGS ───
-const AppSetting = require('../models/AppSetting');
-const Student = require('../models/Student');
-
 const DEFAULT_REG_CONFIG = {
   prefix: 'BJS/',
   suffix: '',
@@ -301,7 +298,7 @@ router.get('/system-status', protect, async (req, res) => {
     const lanIps = [];
     for (const ifName in interfaces) {
       for (const iface of interfaces[ifName]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
+        if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('169.254.')) {
           lanIps.push({
             interface: ifName,
             address: iface.address
@@ -309,6 +306,15 @@ router.get('/system-status', protect, async (req, res) => {
         }
       }
     }
+
+    // Sort to prioritize real LAN adapters (192.168.x.x, 10.x.x.x, Wi-Fi, Ethernet) over VPN
+    lanIps.sort((a, b) => {
+      const aScore = (a.address.startsWith('192.168.') ? 2 : (a.address.startsWith('10.') ? 2 : 1)) +
+                    (/wi-?fi|ethernet|wlan/i.test(a.interface) ? 2 : 0);
+      const bScore = (b.address.startsWith('192.168.') ? 2 : (b.address.startsWith('10.') ? 2 : 1)) +
+                    (/wi-?fi|ethernet|wlan/i.test(b.interface) ? 2 : 0);
+      return bScore - aScore;
+    });
 
     const port = process.env.PORT || 5000;
     const autoBackupSetting = await AppSetting.findOne({ where: { key: 'auto_backup_config' } });
