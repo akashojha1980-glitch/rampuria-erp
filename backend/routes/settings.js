@@ -506,6 +506,23 @@ router.post('/backup/restore', protect, async (req, res) => {
   }
 });
 
+// @desc    Seed / Repopulate 10 comprehensive demo students across all forms
+// @route   POST /api/settings/seed-demo-data
+// @access  Private
+router.all('/seed-demo-data', protect, async (req, res) => {
+  try {
+    const seedData = require('../seed');
+    await seedData(true);
+    res.json({
+      success: true,
+      message: 'Demo dataset of 10 students across all forms (Admissions, Verification, Allotment, Fees, Results, Library, Expenses) populated successfully!'
+    });
+  } catch (error) {
+    console.error('[Seed Demo Data] Error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @desc    Clear Dummy / Demo Test records only
 // @route   POST /api/settings/reset/demo-data
 // @access  Private

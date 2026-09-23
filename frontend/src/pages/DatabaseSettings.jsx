@@ -237,6 +237,32 @@ const DatabaseSettings = () => {
     }
   };
 
+  // 5.1 Quick Seed / Repopulate 10 Demo Students across all forms
+  const handleSeedDemoData = async () => {
+    const token = localStorage.getItem('token');
+    setExecutingReset(true);
+    try {
+      const res = await fetch('/api/settings/seed-demo-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToastMsg(data.message || '10 demo students and forms populated successfully!');
+        fetchSystemInfo();
+      } else {
+        showToastMsg(data.message || 'Failed to seed demo data', 'error');
+      }
+    } catch (err) {
+      showToastMsg('Server connection failed', 'error');
+    } finally {
+      setExecutingReset(false);
+    }
+  };
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
@@ -567,6 +593,27 @@ const DatabaseSettings = () => {
               Use these segregated tools to safely erase sample dummy data or wipe specific modules without affecting other college records.
             </p>
           </div>
+        </div>
+
+        {/* Quick Demo Data Generator Banner */}
+        <div className="p-4 rounded-xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-950/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-xs font-black uppercase text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>Populate 10 Demo Students & Live Forms</span>
+            </h3>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400">
+              Generates 10 complete Law College students with full profiles, fees, results/marksheets, library issues, allotments, and expenses across all ERP modules.
+            </p>
+          </div>
+          <button
+            onClick={handleSeedDemoData}
+            disabled={executingReset}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{executingReset ? 'Seeding...' : 'Seed 10 Demo Students'}</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
