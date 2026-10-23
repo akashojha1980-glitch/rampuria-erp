@@ -1221,14 +1221,6 @@ router.post('/bulk-import', protect, async (req, res) => {
     res.status(500).json({ message: error.message || 'Server error during bulk student import' });
   }
 });
-      errors,
-      imported
-    });
-  } catch (error) {
-    console.error('[Bulk Import Students] error:', error.message);
-    res.status(500).json({ message: error.message || 'Server error during bulk student import' });
-  }
-});
 
 // @desc    Get Student 360 Comprehensive Dossier / Complete Master Record
 // @route   GET /api/students/:id/360-dossier
