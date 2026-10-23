@@ -126,6 +126,10 @@ const ensureDatabaseExists = async () => {
     } else {
       console.log(`[MSSQL] Database "${dbName}" verified.`);
     }
+
+    try {
+      await tempSequelize.query(`ALTER DATABASE [${dbName}] SET RECOVERY SIMPLE`);
+    } catch (e) {}
   } catch (error) {
     console.error(`[MSSQL] Master database check/creation failed:`, error.message);
   } finally {

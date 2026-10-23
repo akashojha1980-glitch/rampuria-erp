@@ -504,9 +504,11 @@ const Registration = () => {
         })
       });
       const data = await res.json();
-      if (res.ok) {
+      if (res.ok && data.success && data.count > 0) {
         setImportResult(data);
-        showToastMsg(`Bulk import complete: ${data.count} students registered in ${selectedSession}!`);
+        setShowBulkImportModal(false);
+        setExcelRows([]);
+        showToastMsg(`Bulk import complete: ${data.count} students registered in Session ${selectedSession}!`);
         // Automatically switch filter and active session to this imported session
         setSessionFilter(selectedSession);
         if (typeof setActiveSession === 'function') {
@@ -518,7 +520,8 @@ const Registration = () => {
         setPage(1);
         fetchStudents();
       } else {
-        showToastMsg(data.message || 'Error during bulk import', 'error');
+        const errorDetail = data.message || (data.errors && data.errors[0]?.error) || 'Failed to import students. Please check file format.';
+        showToastMsg(errorDetail, 'error');
       }
     } catch (err) {
       showToastMsg('Server connection failed', 'error');

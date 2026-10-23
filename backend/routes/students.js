@@ -952,6 +952,8 @@ router.post('/bulk-import', protect, async (req, res) => {
 
     const imported = [];
     const errors = [];
+    const usedEmailsInBatch = new Set();
+    const usedRegIdsInBatch = new Set();
     let paymentsCreated = 0;
 
     for (let i = 0; i < students.length; i++) {
@@ -1009,26 +1011,35 @@ router.post('/bulk-import', protect, async (req, res) => {
         const whatsAppNo = String(rawWhatsApp || mobileNumber).replace(/[^0-9]/g, '');
         const alternateMobile = String(rawOtherMob || '').replace(/[^0-9]/g, '');
 
-        let rawEmail = getVal(row, ['Mail Id', 'Mail ID', 'Mail id', 'MailId', 'mailid', 'email', 'Email', 'Email ID', 'EMAIL']);
+        let rawEmail = getVal(row, ['Mail Id', 'Mail ID', 'Mail id', 'MailId', 'mailid', 'email', 'Email', 'Email ID', 'EMAIL']).toLowerCase().trim();
         if (!rawEmail || !rawEmail.includes('@')) {
-          const accOrNum = studentAccNo || sheetSrNo || `${Date.now()}_${i}`;
-          rawEmail = `student_${accOrNum}_${assignedSession.replace(/[^0-9]/g, '')}@bjsrampuria.edu.in`;
+          const accOrNum = studentAccNo || sheetSrNo || (i + 1);
+          rawEmail = `student_${accOrNum}_${assignedSession.replace(/[^0-9]/g, '')}@bjsrampuria.edu.in`.toLowerCase();
         }
 
-        // Handle email uniqueness
-        const emailExists = await Student.findOne({ where: { email: rawEmail } });
-        const cleanEmail = emailExists ? `student_${Date.now()}_${i}_${Math.floor(Math.random()*1000)}@bjsrampuria.edu.in` : rawEmail;
+        let cleanEmail = rawEmail;
+        let emailCounter = 1;
+        while (usedEmailsInBatch.has(cleanEmail) || (await Student.findOne({ where: { email: cleanEmail } }))) {
+          const accOrNum = studentAccNo || sheetSrNo || (i + 1);
+          cleanEmail = `student_${accOrNum}_${assignedSession.replace(/[^0-9]/g, '')}_${emailCounter++}@bjsrampuria.edu.in`.toLowerCase();
+        }
+        usedEmailsInBatch.add(cleanEmail);
 
         // Registration ID: check 'Registration No.', 'Registration No', 'Reg No', etc.
         let registrationId = getVal(row, ['Registration No.', 'Registration No', 'Registration ID', 'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No']);
         if (registrationId && registrationId !== '-') {
           const idExists = await Student.findOne({ where: { registrationId } });
-          if (idExists) {
+          if (idExists || usedRegIdsInBatch.has(registrationId)) {
             registrationId = formatRegId(currentRegNum++, config, academicSession);
           }
         } else {
           registrationId = formatRegId(currentRegNum++, config, academicSession);
         }
+
+        while (usedRegIdsInBatch.has(registrationId) || (await Student.findOne({ where: { registrationId } }))) {
+          registrationId = formatRegId(currentRegNum++, config, academicSession);
+        }
+        usedRegIdsInBatch.add(registrationId);
 
         // Gender & Category Normalization
         let rawGender = getVal(row, ['Sex', 'SEX', 'gender', 'Gender', 'लिंग']);
@@ -1116,7 +1127,8 @@ router.post('/bulk-import', protect, async (req, res) => {
           courseApplied,
           academicSession,
           academicYear,
-          semester,
+          currentYear: academicYear || '1st Year',
+          currentSemester: semester || '1st Sem',
           admissionBase,
           formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No'], studentAccNo || ''),
           studentAccNo: studentAccNo || '',
@@ -1125,8 +1137,8 @@ router.post('/bulk-import', protect, async (req, res) => {
           parentsContact: alternateMobile || getVal(row, ['parentsContact', 'Parents Contact']),
           whatsAppNo,
           aadharNo: getVal(row, ['Aadhar No.', 'Aadhar No', 'AadharNo', 'aadharno', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
-          yearlyIncomeFather: getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income']),
-          yearlyIncomeMother: getVal(row, ['yearlyIncomeMother', 'Mother Income']),
+          yearlyIncomeFather: parseFloat(getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income'])) || 0.0,
+          yearlyIncomeMother: parseFloat(getVal(row, ['yearlyIncomeMother', 'Mother Income'])) || 0.0,
           
           // Academic 10th
           marks10,
@@ -1204,6 +1216,16 @@ router.post('/bulk-import', protect, async (req, res) => {
     const setting = await AppSetting.findOne({ where: { key: 'reg_number_config' } });
     if (setting) {
       await setting.update({ value: JSON.stringify(config) });
+    }
+
+    if (imported.length === 0 && errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Failed to import records: ${errors[0]?.error || 'Database error occurred'}`,
+        count: 0,
+        errorsCount: errors.length,
+        errors
+      });
     }
 
     res.json({
