@@ -46,27 +46,33 @@ const Student = sequelize.define('Student', {
   },
   gender: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    defaultValue: 'Male'
   },
   dateOfBirth: {
     type: DataTypes.DATEONLY,
-    allowNull: false
+    allowNull: true,
+    defaultValue: '2004-01-01'
   },
   address: {
     type: DataTypes.TEXT,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'Bikaner'
   },
   city: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'Bikaner'
   },
   state: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'Rajasthan'
   },
   pincode: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: '334001'
   },
   category: {
     type: DataTypes.STRING,
@@ -75,36 +81,44 @@ const Student = sequelize.define('Student', {
   },
   courseApplied: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    defaultValue: 'Bachelor of Laws (L.L.B.)'
   },
-  // Academic marks
+  // Academic marks (Defaults provided for graduation-only sheets like LL.B.)
   marks10: {
     type: DataTypes.FLOAT,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 0
   },
   board10: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'RBSE'
   },
   passingYear10: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: '2018'
   },
   marks12: {
     type: DataTypes.FLOAT,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 0
   },
   board12: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'RBSE'
   },
   passingYear12: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: '2020'
   },
   subject12: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true,
+    defaultValue: 'Arts'
   },
   // Documents status JSON
   documents: {

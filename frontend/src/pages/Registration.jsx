@@ -344,7 +344,7 @@ const Registration = () => {
     showToastMsg('Downloaded Student Bulk Import Template (.xlsx)');
   };
 
-  // Read Excel File
+  // Read Excel File with Smart Header Auto-Detection (Handles merged headers, college banners, etc.)
   const handleExcelFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -356,22 +356,117 @@ const Registration = () => {
     reader.onload = (evt) => {
       try {
         const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
-        const data = XLSX.utils.sheet_to_json(ws);
+        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
         
-        if (!data || data.length === 0) {
+        // Pick sheet: find sheet with 'admission', 'student', or 'list', otherwise sheet 0
+        let wsName = wb.SheetNames[0];
+        const matchingSheet = wb.SheetNames.find(n => {
+          const lower = n.toLowerCase();
+          return lower.includes('admission') || lower.includes('student') || lower.includes('list') || lower.includes('data');
+        });
+        if (matchingSheet) wsName = matchingSheet;
+
+        const ws = wb.Sheets[wsName];
+        
+        // 1. Convert sheet to 2D array of raw rows
+        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        
+        if (!rawRows || rawRows.length === 0) {
           showToastMsg('The uploaded Excel sheet contains no data rows', 'error');
           setExcelRows([]);
           return;
         }
 
-        setExcelRows(data);
-        showToastMsg(`Parsed ${data.length} student rows from ${file.name}`);
+        // 2. Automatically find the real header row by scanning for typical column names
+        let headerRowIndex = -1;
+        for (let r = 0; r < Math.min(rawRows.length, 25); r++) {
+          const row = rawRows[r];
+          if (!Array.isArray(row)) continue;
+          
+          const cleanCells = row.map(cell => 
+            String(cell || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+          );
+
+          // Header keywords
+          const hasName = cleanCells.some(c => c === 'name' || c === 'studentname' || c === 'fullname' || c === 'candidatename');
+          const hasFather = cleanCells.some(c => c === 'fname' || c === 'fathername' || c === 'fathersname' || c === 'father');
+          const hasMother = cleanCells.some(c => c === 'mname' || c === 'mothername' || c === 'mothersname' || c === 'mother');
+          const hasAcNo = cleanCells.some(c => c === 'acno' || c === 'accountno' || c === 'sno' || c === 'srno');
+          const hasSex = cleanCells.some(c => c === 'sex' || c === 'gender');
+          const hasDob = cleanCells.some(c => c === 'dob' || c === 'dateofbirth');
+
+          if ((hasName && hasFather) || (hasName && hasAcNo) || (hasName && hasSex) || (hasFather && hasAcNo) || (hasFather && hasMother)) {
+            headerRowIndex = r;
+            break;
+          }
+        }
+
+        // Fallback: search for first row with at least 3 non-empty text cells
+        if (headerRowIndex === -1) {
+          for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
+            const row = rawRows[r];
+            if (Array.isArray(row)) {
+              const textCells = row.filter(c => typeof c === 'string' && c.trim().length > 1);
+              if (textCells.length >= 3) {
+                headerRowIndex = r;
+                break;
+              }
+            }
+          }
+        }
+
+        if (headerRowIndex === -1) headerRowIndex = 0;
+
+        const headerCells = rawRows[headerRowIndex].map((h, colIdx) => {
+          const clean = String(h || '').trim();
+          return clean || `Column_${colIdx + 1}`;
+        });
+
+        // 3. Extract data rows after the header row
+        const parsedStudents = [];
+        for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
+          const row = rawRows[r];
+          if (!Array.isArray(row)) continue;
+
+          // Check if row has any non-empty cell
+          const hasData = row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+          if (!hasData) continue;
+
+          const rowObj = {};
+          headerCells.forEach((headerName, colIdx) => {
+            rowObj[headerName] = row[colIdx] !== undefined ? row[colIdx] : '';
+          });
+
+          // Filter out college title banners or total summaries accidentally caught
+          const valuesJoined = Object.values(rowObj).join(' ').toLowerCase();
+          if (valuesJoined.includes('b.j.s. rampuria') || valuesJoined.includes('jain law college') || (valuesJoined.includes('total') && !rowObj['Name'] && !rowObj['name'])) {
+            continue;
+          }
+
+          // Row must have at least some student identity (Name or Ac. No.)
+          const hasIdentity = Object.keys(rowObj).some(k => {
+            const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const val = String(rowObj[k] || '').trim();
+            if (!val) return false;
+            return (cleanK.includes('name') && val.length > 1) || (cleanK.includes('acno') && val.length > 0) || (cleanK.includes('roll') && val.length > 0);
+          });
+
+          if (!hasIdentity) continue;
+
+          parsedStudents.push(rowObj);
+        }
+
+        if (parsedStudents.length === 0) {
+          showToastMsg('Could not find student data rows in the Excel file', 'error');
+          setExcelRows([]);
+          return;
+        }
+
+        setExcelRows(parsedStudents);
+        showToastMsg(`Parsed ${parsedStudents.length} student rows from ${file.name} (Header row: #${headerRowIndex + 1})`);
       } catch (err) {
         console.error('Excel parse error:', err);
-        showToastMsg('Failed to parse Excel file. Please ensure it is a valid .xlsx or .csv file.', 'error');
+        showToastMsg('Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.', 'error');
       }
     };
     reader.readAsBinaryString(file);
@@ -2350,26 +2445,65 @@ const Registration = () => {
                       </thead>
                       <tbody className="divide-y divide-warm-200/50 dark:divide-darkbg-border font-medium">
                         {excelRows.map((row, i) => {
-                          const sNo = row['S.No'] || row['S.No.'] || row['S. No.'] || row['Sr No'] || (i + 1);
-                          const acNo = row['Ac. No.'] || row['Ac. No'] || row['Ac No.'] || row['Ac No'] || row['studentAccNo'] || '-';
-                          const regNo = row['Registration No.'] || row['Registration No'] || row['Reg No'] || row['registrationId'] || `Auto (#${1001 + i})`;
-                          const name = row['Name'] || row['name'] || row['Full Name'] || row['Student Name'] || '-';
-                          const father = row["Father's Name"] || row['Father Name'] || row['Fathers Name'] || row['fatherName'] || '-';
-                          const mother = row['Mothers Name'] || row["Mother's Name"] || row['Mother Name'] || row['motherName'] || '-';
+                          const getVal = (aliases, fallback = '-') => {
+                            if (!row || typeof row !== 'object') return fallback;
+                            for (const a of aliases) {
+                              if (row[a] !== undefined && row[a] !== null && String(row[a]).trim() !== '') {
+                                return String(row[a]).trim();
+                              }
+                            }
+                            const keys = Object.keys(row);
+                            for (const a of aliases) {
+                              const cleanA = a.toLowerCase().replace(/[^a-z0-9]/g, '');
+                              const matchKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanA);
+                              if (matchKey && row[matchKey] !== undefined && row[matchKey] !== null && String(row[matchKey]).trim() !== '') {
+                                return String(row[matchKey]).trim();
+                              }
+                            }
+                            return fallback;
+                          };
+
+                          const sNo = getVal(['S.No', 'S.No.', 'S. No.', 'Sr No', 'Sr. No.', 'SNo'], i + 1);
+                          const acNo = getVal([
+                            'A/C No.', 'A/C No', 'A/c No.', 'A/c No', 'Ac. No.', 'Ac. No', 
+                            'Ac No.', 'Ac No', 'studentAccNo', 'Account No'
+                          ], '-');
+                          const regNo = getVal([
+                            'Registration No.', 'Registration No', 'Reg No', 'Reg. No.', 'registrationId'
+                          ], `Auto (#${1001 + i})`);
+                          const name = getVal([
+                            'Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name'
+                          ], '-');
+                          const father = getVal([
+                            "Father's Name", 'Father Name', 'Fathers Name', 'F. Name', 'F.Name', 'F Name', 
+                            'F_NAME', 'fatherName', 'Father'
+                          ], '-');
+                          const mother = getVal([
+                            'Mothers Name', "Mother's Name", 'Mother Name', 'M. Name', 'M.Name', 'M Name', 
+                            'M_NAME', 'motherName', 'Mother'
+                          ], '-');
                           
-                          // Gender from Category (M/F) or gender column
-                          const rawCat = row['Category'] || row['category'] || '';
-                          let genderDisplay = row['Gender'] || row['gender'] || '';
-                          if (!genderDisplay && (rawCat === 'M' || rawCat === 'm')) genderDisplay = 'Male (M)';
-                          else if (!genderDisplay && (rawCat === 'F' || rawCat === 'f')) genderDisplay = 'Female (F)';
-                          else if (!genderDisplay) genderDisplay = rawCat || 'Male';
+                          // Gender from Sex, Gender, or Category
+                          let rawGender = getVal(['Sex', 'sex', 'Gender', 'gender'], '');
+                          let genderDisplay = 'Male';
+                          if (/^f|female|महिला/i.test(rawGender)) genderDisplay = 'Female';
+                          else if (/^m|male/i.test(rawGender)) genderDisplay = 'Male';
+                          else if (rawGender) genderDisplay = rawGender;
 
                           // Caste / Social Category
-                          const caste = row['Caste'] || row['caste'] || (rawCat && !['M', 'F', 'm', 'f'].includes(rawCat) ? rawCat : 'GEN');
+                          const caste = getVal([
+                            'Cat.', 'Cat', 'Category', 'category', 'Caste', 'caste', 'Social Category'
+                          ], 'GEN');
                           
-                          const whatsapp = row['Whatsup Mob. No.'] || row['Whatsup Mob No'] || row['Whatsup Mob.'] || row['WhatsApp No'] || row['mobileNumber'] || row['Mobile'] || '-';
-                          const otherMob = row['Other Mob. No.'] || row['Other Mob No'] || row['Other Mob.'] || row['alternateMobile'] || row['Parents Contact'] || '-';
-                          const session = importSession === 'custom' ? customImportSession : (row['Academic Session'] || row['Session'] || importSession);
+                          const whatsapp = getVal([
+                            'Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 
+                            'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'mobileNumber', 'Mobile', 'Phone'
+                          ], '-');
+                          const otherMob = getVal([
+                            'Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 
+                            'Other Mobile', 'alternateMobile', 'Parents Contact', 'Parent Mobile'
+                          ], '-');
+                          const session = importSession === 'custom' ? customImportSession : getVal(['Academic Session', 'Session'], importSession);
 
                           return (
                             <tr key={i} className="hover:bg-warm-50 dark:hover:bg-darkbg-base/70 transition-colors">
@@ -2380,7 +2514,7 @@ const Registration = () => {
                               <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap">{father}</td>
                               <td className="px-3 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">{mother}</td>
                               <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${genderDisplay.includes('F') ? 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'}`}>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${genderDisplay.includes('Female') || genderDisplay.includes('F') ? 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'}`}>
                                   {genderDisplay}
                                 </span>
                               </td>

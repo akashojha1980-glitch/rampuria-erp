@@ -831,6 +831,64 @@ router.delete('/:id', protect, async (req, res) => {
   }
 });
 
+// Helper to robustly parse various Excel date representations (DD/MM/YYYY, Excel numeric serials, etc.)
+const parseExcelDate = (val) => {
+  if (!val) return '2004-01-01';
+  
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    return val.toISOString().split('T')[0];
+  }
+
+  // If numeric Excel date serial (e.g. 29339 or 37374)
+  if (typeof val === 'number' || (!isNaN(val) && !String(val).includes('-') && !String(val).includes('/'))) {
+    const num = Number(val);
+    if (num > 1000 && num < 100000) {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      const date = new Date(excelEpoch.getTime() + num * 86400000);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
+      }
+    }
+  }
+
+  const str = String(val).trim();
+
+  // Match DD/MM/YYYY or DD-MM-YYYY or D/M/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+  if (dmyMatch) {
+    let day = parseInt(dmyMatch[1], 10);
+    let month = parseInt(dmyMatch[2], 10);
+    let year = parseInt(dmyMatch[3], 10);
+
+    if (year < 100) {
+      year = year > 30 ? 1900 + year : 2000 + year;
+    }
+
+    if (month > 12 && day <= 12) {
+      const temp = month;
+      month = day;
+      day = temp;
+    }
+    month = Math.min(Math.max(month, 1), 12);
+    day = Math.min(Math.max(day, 1), 31);
+
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+
+  // Match YYYY-MM-DD
+  const ymdMatch = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
+  if (ymdMatch) {
+    return `${ymdMatch[1]}-${String(ymdMatch[2]).padStart(2, '0')}-${String(ymdMatch[3]).padStart(2, '0')}`;
+  }
+
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+
+  return '2004-01-01';
+};
+
 // @desc    Bulk import students from Excel / CSV
 // @route   POST /api/students/bulk-import
 // @access  Private
@@ -874,12 +932,13 @@ router.post('/bulk-import', protect, async (req, res) => {
 
     // Helper to find value from row by multiple potential key aliases
     const getVal = (row, aliases, fallback = '') => {
+      if (!row || typeof row !== 'object') return fallback;
       for (const alias of aliases) {
         if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== '') {
           return String(row[alias]).trim();
         }
       }
-      // Also do a case-insensitive key search
+      // Also do a case-insensitive key search (stripping spaces, dots, slashes)
       const rowKeys = Object.keys(row);
       for (const alias of aliases) {
         const lowerAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -900,8 +959,11 @@ router.post('/bulk-import', protect, async (req, res) => {
       const rowNum = i + 1;
 
       try {
-        const fullName = getVal(row, ['Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name', 'STUDENT NAME', 'StudentName', 'नाम', 'छात्र का नाम']);
-        if (!fullName) {
+        const fullName = getVal(row, [
+          'Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name', 
+          'STUDENT NAME', 'StudentName', 'नाम', 'छात्र का नाम'
+        ]);
+        if (!fullName || fullName === '-') {
           errors.push({ row: rowNum, error: 'Student Name is missing in this row' });
           continue;
         }
@@ -912,10 +974,30 @@ router.post('/bulk-import', protect, async (req, res) => {
         const academicYear = getVal(row, ['academicYear', 'Academic Year', 'year', 'Year', 'Current Year', 'वर्ष'], defaultYear);
         const semester = getVal(row, ['semester', 'Semester', 'Current Semester', 'Term', 'सेमेस्टर'], defaultSemester);
 
+        // Student Account Number (Ac. No. in Rampuria sheets)
+        const studentAccNo = getVal(row, [
+          'A/C No.', 'A/C No', 'A/c No.', 'A/c No', 'Ac. No.', 'Ac. No', 'Ac No.', 'Ac No', 
+          'Ac.No.', 'Ac.No', 'studentAccNo', 'Student Acc No', 'Account No', 'AC NO', 'acno'
+        ]);
+
+        // Sr No from sheet if present
+        const sheetSrNo = parseInt(getVal(row, ['S.No', 'S.No.', 'S. No.', 'S. No', 'Sr No', 'Sr. No.', 'Sr.No.', 'srNo', 'SNo'])) || parseInt(studentAccNo);
+
         // Extract Mobile numbers
-        const rawWhatsApp = getVal(row, ['Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'WhatsApp', 'Whats App No', 'Whatsup']);
-        const rawOtherMob = getVal(row, ['Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 'Other Mobile', 'Alternate Mobile', 'alternateMobile', 'Parents Contact', 'Parent Mobile']);
-        let primaryMobile = getVal(row, ['mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Mobile No.', 'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल']);
+        const rawWhatsApp = getVal(row, [
+          'Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 
+          'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'WhatsApp', 'Whats App No', 
+          'Whatsup', 'whatsupmobno'
+        ]);
+        const rawOtherMob = getVal(row, [
+          'Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 
+          'Other Mobile', 'Alternate Mobile', 'alternateMobile', 'Parents Contact', 
+          'Parent Mobile', 'othermobno'
+        ]);
+        let primaryMobile = getVal(row, [
+          'mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Mobile No.', 
+          'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल'
+        ]);
 
         if (!primaryMobile) {
           primaryMobile = rawWhatsApp || rawOtherMob || '0000000000';
@@ -927,9 +1009,10 @@ router.post('/bulk-import', protect, async (req, res) => {
         const whatsAppNo = String(rawWhatsApp || mobileNumber).replace(/[^0-9]/g, '');
         const alternateMobile = String(rawOtherMob || '').replace(/[^0-9]/g, '');
 
-        let rawEmail = getVal(row, ['email', 'Email', 'Email ID', 'EMAIL']);
+        let rawEmail = getVal(row, ['Mail Id', 'Mail ID', 'Mail id', 'MailId', 'mailid', 'email', 'Email', 'Email ID', 'EMAIL']);
         if (!rawEmail || !rawEmail.includes('@')) {
-          rawEmail = `student_${Date.now()}_${i}@bjsrampuria.edu.in`;
+          const accOrNum = studentAccNo || sheetSrNo || `${Date.now()}_${i}`;
+          rawEmail = `student_${accOrNum}_${assignedSession.replace(/[^0-9]/g, '')}@bjsrampuria.edu.in`;
         }
 
         // Handle email uniqueness
@@ -937,8 +1020,8 @@ router.post('/bulk-import', protect, async (req, res) => {
         const cleanEmail = emailExists ? `student_${Date.now()}_${i}_${Math.floor(Math.random()*1000)}@bjsrampuria.edu.in` : rawEmail;
 
         // Registration ID: check 'Registration No.', 'Registration No', 'Reg No', etc.
-        let registrationId = getVal(row, ['Registration No.', 'Registration No', 'Registration ID', 'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No', 'Form No']);
-        if (registrationId) {
+        let registrationId = getVal(row, ['Registration No.', 'Registration No', 'Registration ID', 'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No']);
+        if (registrationId && registrationId !== '-') {
           const idExists = await Student.findOne({ where: { registrationId } });
           if (idExists) {
             registrationId = formatRegId(currentRegNum++, config, academicSession);
@@ -947,15 +1030,9 @@ router.post('/bulk-import', protect, async (req, res) => {
           registrationId = formatRegId(currentRegNum++, config, academicSession);
         }
 
-        // Student Account Number (Ac. No. in Rampuria sheets)
-        const studentAccNo = getVal(row, ['Ac. No.', 'Ac. No', 'Ac No.', 'Ac No', 'Ac.No.', 'Ac.No', 'studentAccNo', 'Student Acc No', 'Account No']);
-
-        // Sr No from sheet if present
-        const sheetSrNo = parseInt(getVal(row, ['S.No', 'S.No.', 'S. No.', 'S. No', 'Sr No', 'Sr. No.', 'Sr.No.', 'srNo', 'SNo']));
-
-        // Gender & Category Normalization (In Rampuria sheets, Category column is M/F and Caste column is OBC/GEN/SC/ST)
-        let rawGender = getVal(row, ['gender', 'Gender', 'Sex', 'SEX', 'लिंग']);
-        const rawCategoryCol = getVal(row, ['Category', 'category']);
+        // Gender & Category Normalization
+        let rawGender = getVal(row, ['Sex', 'SEX', 'gender', 'Gender', 'लिंग']);
+        const rawCategoryCol = getVal(row, ['Category', 'category', 'Cat.', 'Cat']);
         const rawCasteCol = getVal(row, ['Caste', 'caste', 'Cast', 'Social Category', 'वर्ग']);
 
         if (!rawGender && /^(m|f|male|female|other)$/i.test(rawCategoryCol)) {
@@ -975,68 +1052,116 @@ router.post('/bulk-import', protect, async (req, res) => {
         else if (/gen/i.test(catTarget)) category = 'General';
 
         // Date of Birth
-        let dob = getVal(row, ['dateOfBirth', 'DOB', 'Date of Birth', 'Birth Date', 'dob', 'D.O.B', 'जन्म तिथि'], '2004-01-01');
-        if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(dob)) {
-          const parts = dob.split(/[\/\-]/);
-          const yyyy = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
-          dob = `${yyyy}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-        }
+        const rawDob = getVal(row, ['D.O.B.', 'D.O.B', 'DOB', 'dob', 'dateOfBirth', 'Date of Birth', 'Birth Date', 'जन्म तिथि']);
+        const dob = parseExcelDate(rawDob);
+
+        // Admission Base (Always sanitize to 'UG' or 'PG' to satisfy SQL Server enum constraint)
+        const rawBase = getVal(row, ['Adm. Base', 'Adm Base', 'admissionBase', 'Admission Base', 'Base'], 'UG').toUpperCase();
+        const admissionBase = rawBase.includes('PG') ? 'PG' : 'UG';
+
+        // Due Documents & Verification Remarks
+        const dueDocs = getVal(row, ['Due Documents', 'Due Document', 'Pending Documents', 'Documents Due', 'Remarks']);
+        const verificationRemarks = dueDocs ? `Pending Documents: ${dueDocs}` : 'Imported via Excel Batch Import';
+
+        // Graduation & Qualifying details
+        const gradUniv = getVal(row, ['University Name', 'University', 'gradUniversity', 'Graduation University', 'Grad Univ'], 'Maharaja Ganga Singh University, Bikaner');
+        const gradYr = getVal(row, ['Year of Passing', 'Passing Year', 'gradYear', 'Graduation Year', 'Grad Year'], '2024');
+        const gradSubj = getVal(row, ['Quali. Class', 'Quali Class', 'gradSubject', 'Graduation Subject', 'Grad Subject'], 'B.A.');
+        const gradMax = parseInt(getVal(row, ['Max. Marks', 'Max Marks', 'gradMaxMarks', 'Grad Max'])) || 1800;
+        const gradObt = parseInt(getVal(row, ['Obt. Marks', 'Obt Marks', 'gradObtainedMarks', 'Grad Obtained'])) || 0;
+        const gradPct = parseFloat(getVal(row, ['Per.', 'Per', 'Percentage', 'gradPercentage', 'Grad %'])) || (gradMax > 0 && gradObt > 0 ? parseFloat(((gradObt / gradMax) * 100).toFixed(2)) : 0.0);
+        const qualMode = getVal(row, ['Mode', 'mode', 'Study Mode', 'qualType'], 'Regular');
+
+        // Safe defaults for 10th & 12th marks (prevent NOT NULL SQL errors when only graduation data is provided)
+        const marks10 = parseFloat(getVal(row, ['marks10', '10th %', '10th Marks', '10th Percentage', '10th'])) || 60.0;
+        const board10 = getVal(row, ['board10', '10th Board', 'Board 10th', 'RBSE/CBSE'], 'RBSE');
+        const passingYear10 = getVal(row, ['passingYear10', '10th Year', 'Year 10th'], '2018');
+        const maxMarks10 = parseInt(getVal(row, ['maxMarks10', '10th Max'])) || 600;
+        const obtainedMarks10 = parseInt(getVal(row, ['obtainedMarks10', '10th Obtained'])) || 360;
+
+        const marks12 = parseFloat(getVal(row, ['marks12', '12th %', '12th Marks', '12th Percentage', '12th'])) || 65.0;
+        const board12 = getVal(row, ['board12', '12th Board', 'Board 12th'], 'RBSE');
+        const passingYear12 = getVal(row, ['passingYear12', '12th Year', 'Year 12th'], '2020');
+        const subject12 = getVal(row, ['subject12', '12th Subject', 'Stream'], 'Arts');
+        const maxMarks12 = parseInt(getVal(row, ['maxMarks12', '12th Max'])) || 500;
+        const obtainedMarks12 = parseInt(getVal(row, ['obtainedMarks12', '12th Obtained'])) || 325;
+
+        const address = getVal(row, ['address', 'Address', 'Permanent Address', 'Full Address', 'Village', 'पता'], 'Bikaner');
+        const city = getVal(row, ['Dist.', 'Dist', 'District', 'city', 'City', 'District Name', 'शहर'], 'Bikaner');
+        const state = getVal(row, ['state', 'State', 'राज्य'], 'Rajasthan');
+        const pincode = getVal(row, ['pincode', 'Pincode', 'Pin Code', 'Postal Code', 'पिन कोड'], '334001');
 
         const newStudent = await Student.create({
           srNo: !isNaN(sheetSrNo) && sheetSrNo > 0 ? sheetSrNo : currentSrNo++,
           registrationId,
           fullName,
-          fatherName: getVal(row, ["Father's Name", 'Father Name', 'Fathers Name', 'FATHER_NAME', 'FATHER NAME', 'fatherName', 'Father', 'पिता का नाम']),
-          motherName: getVal(row, ['Mothers Name', "Mother's Name", 'Mother Name', 'MOTHER_NAME', 'MOTHER NAME', 'motherName', 'Mother', 'माता का नाम']),
+          fatherName: getVal(row, [
+            "Father's Name", 'Father Name', 'Fathers Name', 'F. Name', 'F.Name', 'F Name', 
+            'F_NAME', 'FATHER_NAME', 'FATHER NAME', 'fatherName', 'Father', 'पिता का नाम'
+          ], 'Father'),
+          motherName: getVal(row, [
+            'Mothers Name', "Mother's Name", 'Mother Name', 'M. Name', 'M.Name', 'M Name', 
+            'M_NAME', 'MOTHER_NAME', 'MOTHER NAME', 'motherName', 'Mother', 'माता का नाम'
+          ], 'Mother'),
           mobileNumber,
           alternateMobile,
           email: cleanEmail,
           gender,
           dateOfBirth: dob,
-          address: getVal(row, ['address', 'Address', 'Permanent Address', 'Full Address', 'Village', 'पता']),
-          city: getVal(row, ['city', 'City', 'District', 'शहर'], 'Bikaner'),
-          state: getVal(row, ['state', 'State', 'राज्य'], 'Rajasthan'),
-          pincode: getVal(row, ['pincode', 'Pincode', 'Pin Code', 'Postal Code', 'पिन कोड'], '334001'),
+          address,
+          city,
+          state,
+          pincode,
           category,
           courseApplied,
           academicSession,
           academicYear,
           semester,
-          admissionBase: getVal(row, ['admissionBase', 'Admission Base', 'Base'], 'UG'),
-          formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No']),
-          studentAccNo,
+          admissionBase,
+          formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No'], studentAccNo || ''),
+          studentAccNo: studentAccNo || '',
           medium: getVal(row, ['medium', 'Medium', 'माध्यम'], 'Hindi'),
-          permanentAddress: getVal(row, ['permanentAddress', 'Permanent Address', 'address', 'Address']),
+          permanentAddress: address,
           parentsContact: alternateMobile || getVal(row, ['parentsContact', 'Parents Contact']),
           whatsAppNo,
-          aadharNo: getVal(row, ['aadharNo', 'Aadhar No', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
+          aadharNo: getVal(row, ['Aadhar No.', 'Aadhar No', 'AadharNo', 'aadharno', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
           yearlyIncomeFather: getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income']),
           yearlyIncomeMother: getVal(row, ['yearlyIncomeMother', 'Mother Income']),
           
           // Academic 10th
-          marks10: getVal(row, ['marks10', '10th %', '10th Marks', '10th Percentage', '10th']),
-          board10: getVal(row, ['board10', '10th Board', 'Board 10th', 'RBSE/CBSE'], 'RBSE'),
-          passingYear10: getVal(row, ['passingYear10', '10th Year', 'Year 10th']),
-          maxMarks10: getVal(row, ['maxMarks10', '10th Max']),
-          obtainedMarks10: getVal(row, ['obtainedMarks10', '10th Obtained']),
+          marks10,
+          board10,
+          passingYear10,
+          maxMarks10,
+          obtainedMarks10,
           
           // Academic 12th
-          marks12: getVal(row, ['marks12', '12th %', '12th Marks', '12th Percentage', '12th']),
-          board12: getVal(row, ['board12', '12th Board', 'Board 12th'], 'RBSE'),
-          passingYear12: getVal(row, ['passingYear12', '12th Year', 'Year 12th']),
-          subject12: getVal(row, ['subject12', '12th Subject', 'Stream']),
-          maxMarks12: getVal(row, ['maxMarks12', '12th Max']),
-          obtainedMarks12: getVal(row, ['obtainedMarks12', '12th Obtained']),
+          marks12,
+          board12,
+          passingYear12,
+          subject12,
+          maxMarks12,
+          obtainedMarks12,
 
-          // Graduation / Qualifying
-          gradUniversity: getVal(row, ['gradUniversity', 'Graduation University', 'Grad Univ', 'University']),
-          gradYear: getVal(row, ['gradYear', 'Graduation Year', 'Grad Year']),
-          gradSubject: getVal(row, ['gradSubject', 'Graduation Subject', 'Grad Subject']),
-          gradMaxMarks: getVal(row, ['gradMaxMarks', 'Grad Max']),
-          gradObtainedMarks: getVal(row, ['gradObtainedMarks', 'Grad Obtained']),
-          gradPercentage: getVal(row, ['gradPercentage', 'Grad %', 'Graduation %', 'Graduation Marks']),
+          // Graduation details
+          gradUniversity: gradUniv,
+          gradYear: gradYr,
+          gradSubject: gradSubj,
+          gradMaxMarks: gradMax,
+          gradObtainedMarks: gradObt,
+          gradPercentage: gradPct,
+
+          // Qualifying details
+          qualExamName: gradSubj,
+          qualUniversity: gradUniv,
+          qualYear: gradYr,
+          qualMaxMarks: gradMax,
+          qualObtainedMarks: gradObt,
+          qualPercentage: gradPct,
+          qualType: qualMode,
 
           verificationStatus: 'Approved',
+          verificationRemarks,
           seatAllotted: true
         });
 
@@ -1063,14 +1188,14 @@ router.post('/bulk-import', protect, async (req, res) => {
             paymentDate,
             paymentMode,
             transactionNo,
-            remarks: `Imported via Bulk Excel (${row.fullName || 'Student'})`
+            remarks: `Imported via Bulk Excel (${newStudent.fullName})`
           });
           paymentsCreated++;
         }
 
         imported.push(mapId(newStudent));
       } catch (err) {
-        errors.push({ row: rowNum, student: row.fullName || `Row ${rowNum}`, error: err.message });
+        errors.push({ row: rowNum, student: row.fullName || row['Name'] || `Row ${rowNum}`, error: err.message });
       }
     }
 
@@ -1088,6 +1213,14 @@ router.post('/bulk-import', protect, async (req, res) => {
       assignedSession,
       paymentsCreated,
       errorsCount: errors.length,
+      errors,
+      imported
+    });
+  } catch (error) {
+    console.error('[Bulk Import Students] error:', error.message);
+    res.status(500).json({ message: error.message || 'Server error during bulk student import' });
+  }
+});
       errors,
       imported
     });
