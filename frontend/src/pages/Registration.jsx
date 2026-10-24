@@ -4,7 +4,7 @@ import {
   Search, Plus, Filter, Download, ArrowLeft,
   ChevronLeft, ChevronRight, Edit2, Trash2, Eye, Calendar, TrendingUp,
   FileSpreadsheet, Settings, Upload, CheckCircle2, AlertTriangle, X, RefreshCw,
-  DollarSign, ArrowUpDown, Layers
+  DollarSign, ArrowUpDown, Layers, Printer
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ import { useSession } from '../context/SessionContext';
 import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 import FeeStructureSettingsModal from '../components/FeeStructureSettingsModal';
+import PrintStudentListModal from '../components/PrintStudentListModal';
 
 const Registration = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const Registration = () => {
   const [courses, setCourses] = useState([]);
   const [toast, setToast] = useState(null);
   const [showFeeSettingsModal, setShowFeeSettingsModal] = useState(false);
+  const [showPrintStudentListModal, setShowPrintStudentListModal] = useState(false);
 
   // Pagination & Filter States
   const [search, setSearch] = useState('');
@@ -933,6 +935,16 @@ const Registration = () => {
 
                 {/* Operations */}
                 <div className="flex flex-wrap items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPrintStudentListModal(true)}
+                    className="px-3.5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center space-x-1.5"
+                    title="Print Semester-wise or Complete Session Student Master Roll List"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print Student List</span>
+                  </button>
+
                   <button 
                     type="button"
                     onClick={() => { setShowBulkImportModal(true); setImportResult(null); setExcelRows([]); setExcelFileName(''); }}
@@ -2733,6 +2745,15 @@ const Registration = () => {
         isOpen={showFeeSettingsModal}
         onClose={() => setShowFeeSettingsModal(false)}
         onFeeUpdated={fetchCourses}
+      />
+
+      {/* Semester-wise / Session-wise Student Master List Print Modal */}
+      <PrintStudentListModal
+        isOpen={showPrintStudentListModal}
+        onClose={() => setShowPrintStudentListModal(false)}
+        initialSession={sessionFilter === 'All Sessions' ? (activeSession || '2024-25') : sessionFilter}
+        availableSessions={sessions}
+        courses={courses}
       />
 
     </div>

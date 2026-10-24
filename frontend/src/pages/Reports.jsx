@@ -4,7 +4,7 @@ import {
   Filter, Printer, ArrowUpRight, TrendingUp, AlertCircle, 
   DollarSign, CheckSquare, Square, Eye, RotateCcw, HelpCircle,
   Download, BookOpen, Layers, Clock, ShieldCheck, User, Plus,
-  ArrowDownRight, CheckCircle2, RefreshCw, X, AlertTriangle, ChevronRight
+  ArrowDownRight, CheckCircle2, RefreshCw, X, AlertTriangle, ChevronRight, Users
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -12,6 +12,7 @@ import Loading from '../components/Loading';
 import Toast from '../components/Toast';
 import PrintReceiptModal from '../components/PrintReceiptModal';
 import ExpenseModal from '../components/ExpenseModal';
+import PrintStudentListModal from '../components/PrintStudentListModal';
 import { useSession } from '../context/SessionContext';
 import PrintHeader from '../components/print/PrintHeader';
 import PrintFooter from '../components/print/PrintFooter';
@@ -51,6 +52,7 @@ const Reports = () => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [showPrintStudentModal, setShowPrintStudentModal] = useState(false);
 
   // Filter Presets Helper
   const getTodayStr = () => new Date().toISOString().split('T')[0];
@@ -644,6 +646,15 @@ const Reports = () => {
           </button>
 
           <button
+            onClick={() => setShowPrintStudentModal(true)}
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-2 active:scale-95"
+            title="Open Semester-wise Student List Print & Export Dialog"
+          >
+            <Users className="w-4 h-4" />
+            <span>Semester Student List</span>
+          </button>
+
+          <button
             onClick={exportToExcel}
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center space-x-2 active:scale-95"
           >
@@ -722,6 +733,15 @@ const Reports = () => {
         >
           <DollarSign className="w-4 h-4" />
           <span>Expenses & Debit Vouchers</span>
+        </button>
+
+        <button
+          onClick={() => setShowPrintStudentModal(true)}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800"
+          title="Print Semester-wise Student Master Roll List"
+        >
+          <Users className="w-4 h-4" />
+          <span>Semester-Wise Student Roll List</span>
         </button>
       </div>
 
@@ -1535,6 +1555,15 @@ const Reports = () => {
           customNote="This report is an official compilation extracted from Pankh Gold College Management ERP. Any discrepancy should be reported to the Accounts & Administrative section."
         />
       </div>
+
+      {/* Semester-wise / Session-wise Student Master Roll Print Modal */}
+      <PrintStudentListModal
+        isOpen={showPrintStudentModal}
+        onClose={() => setShowPrintStudentModal(false)}
+        initialSession={filterSession || activeSession || '2024-25'}
+        availableSessions={availableSessions}
+        courses={coursesList.filter(c => c !== 'All').map(c => ({ code: c }))}
+      />
 
     </div>
   );

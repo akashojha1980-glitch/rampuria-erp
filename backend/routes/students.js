@@ -217,8 +217,25 @@ router.post('/', protect, upload.fields(studentUploadFields), async (req, res) =
 // @route   GET /api/students
 // @access  Private
 router.get('/', protect, async (req, res) => {
-  const { search, course, category, status, session, sortBy = 'accNo_asc', page = 1, limit = 25 } = req.query;
-  const where = {};
+  const { 
+    search, 
+    course, 
+    category, 
+    gender,
+    status, 
+    session, 
+    semester,
+    currentSemester,
+    year,
+    academicYear,
+    currentYear,
+    sortBy = 'accNo_asc', 
+    page = 1, 
+    limit = 25,
+    all = false
+  } = req.query;
+
+  const andConditions = [];
 
   if (session && session !== 'all' && session !== 'All' && session !== 'All Sessions') {
     const norm = normalizeSession(session);
@@ -229,45 +246,81 @@ router.get('/', protect, async (req, res) => {
     const slashForm = norm.replace('-', '/'); // e.g. "2024/25"
     const shortSlash = short.replace('-', '/'); // e.g. "24/25"
 
-    where.academicSession = {
-      [Op.or]: [
-        session,
-        norm,
-        short,
-        long,
-        spaceForm,
-        shortSpace,
-        slashForm,
-        shortSlash,
-        { [Op.like]: `%${short}%` }
-      ]
-    };
+    andConditions.push({
+      academicSession: {
+        [Op.or]: [
+          session,
+          norm,
+          short,
+          long,
+          spaceForm,
+          shortSpace,
+          slashForm,
+          shortSlash,
+          { [Op.like]: `%${short}%` }
+        ]
+      }
+    });
   }
-  if (course && course !== 'all') where.courseApplied = course;
-  if (category && category !== 'all') where.category = category;
+
+  if (course && course !== 'all' && course !== 'All' && course !== 'All Courses') {
+    andConditions.push({ courseApplied: course });
+  }
+
+  if (category && category !== 'all' && category !== 'All' && category !== 'All Categories') {
+    andConditions.push({ category });
+  }
+
+  if (gender && gender !== 'all' && gender !== 'All') {
+    andConditions.push({ gender });
+  }
+
+  const semVal = semester || currentSemester;
+  if (semVal && semVal !== 'all' && semVal !== 'All' && semVal !== 'All Semesters') {
+    const cleanSem = semVal.trim();
+    andConditions.push({
+      [Op.or]: [
+        { currentSemester: { [Op.like]: `%${cleanSem}%` } },
+        { semester: { [Op.like]: `%${cleanSem}%` } }
+      ]
+    });
+  }
+
+  const yrVal = year || academicYear || currentYear;
+  if (yrVal && yrVal !== 'all' && yrVal !== 'All' && yrVal !== 'All Years') {
+    const cleanYr = yrVal.trim();
+    andConditions.push({
+      [Op.or]: [
+        { currentYear: { [Op.like]: `%${cleanYr}%` } },
+        { academicYear: { [Op.like]: `%${cleanYr}%` } }
+      ]
+    });
+  }
   
   if (status === 'verified' || status === 'Approved' || status === 'Verified') {
-    where.verificationStatus = { [Op.in]: ['Verified', 'Approved'] };
+    andConditions.push({ verificationStatus: { [Op.in]: ['Verified', 'Approved'] } });
   } else if (status === 'pending' || status === 'Pending') {
-    where.verificationStatus = 'Pending';
+    andConditions.push({ verificationStatus: 'Pending' });
   } else if (status === 'allotted') {
-    where.seatAllotted = true;
+    andConditions.push({ seatAllotted: true });
   }
 
   if (search && search.trim() !== '') {
     const s = search.trim();
-    where[Op.or] = [
-      { fullName: { [Op.like]: `%${s}%` } },
-      { fatherName: { [Op.like]: `%${s}%` } },
-      { motherName: { [Op.like]: `%${s}%` } },
-      { studentAccNo: { [Op.like]: `%${s}%` } },
-      { registrationId: { [Op.like]: `%${s}%` } },
-      { formNo: { [Op.like]: `%${s}%` } },
-      { email: { [Op.like]: `%${s}%` } },
-      { mobileNumber: { [Op.like]: `%${s}%` } },
-      { whatsAppNo: { [Op.like]: `%${s}%` } },
-      { aadharNo: { [Op.like]: `%${s}%` } }
-    ];
+    andConditions.push({
+      [Op.or]: [
+        { fullName: { [Op.like]: `%${s}%` } },
+        { fatherName: { [Op.like]: `%${s}%` } },
+        { motherName: { [Op.like]: `%${s}%` } },
+        { studentAccNo: { [Op.like]: `%${s}%` } },
+        { registrationId: { [Op.like]: `%${s}%` } },
+        { formNo: { [Op.like]: `%${s}%` } },
+        { email: { [Op.like]: `%${s}%` } },
+        { mobileNumber: { [Op.like]: `%${s}%` } },
+        { whatsAppNo: { [Op.like]: `%${s}%` } },
+        { aadharNo: { [Op.like]: `%${s}%` } }
+      ]
+    });
   }
 
   let order = [['studentAccNo', 'ASC'], ['srNo', 'ASC']];
@@ -277,15 +330,25 @@ router.get('/', protect, async (req, res) => {
     order = [['srNo', 'ASC']];
   } else if (sortBy === 'name_asc') {
     order = [['fullName', 'ASC']];
+  } else if (sortBy === 'regId_asc') {
+    order = [['registrationId', 'ASC']];
   } else if (sortBy === 'accNo_asc') {
     order = [['studentAccNo', 'ASC'], ['srNo', 'ASC']];
   }
 
+  const finalWhere = andConditions.length > 0 ? { [Op.and]: andConditions } : {};
+  const isAll = all === 'true' || all === true || Number(limit) === -1 || Number(limit) >= 5000;
+  const paginationOpts = isAll
+    ? {}
+    : {
+        limit: Number(limit) || 25,
+        offset: (Number(page) - 1) * (Number(limit) || 25)
+      };
+
   try {
     const { count, rows: students } = await Student.findAndCountAll({
-      where,
-      limit: Number(limit) || 25,
-      offset: (Number(page) - 1) * (Number(limit) || 25),
+      where: finalWhere,
+      ...paginationOpts,
       order
     });
 
