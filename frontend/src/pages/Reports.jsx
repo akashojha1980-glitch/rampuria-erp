@@ -579,7 +579,8 @@ const Reports = () => {
 
   return (
     <div className="flex flex-col space-y-6 font-sans">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <div className={showPrintStudentModal ? 'no-print' : 'contents'}>
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Printable Institutional Header (Rendered on Paper during Print) */}
       <div className="hidden print:block printable-report">
@@ -1554,6 +1555,7 @@ const Reports = () => {
         <PrintFooter
           customNote="This report is an official compilation extracted from Pankh Gold College Management ERP. Any discrepancy should be reported to the Accounts & Administrative section."
         />
+      </div>
       </div>
 
       {/* Semester-wise / Session-wise Student Master Roll Print Modal */}

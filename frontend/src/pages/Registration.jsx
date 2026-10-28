@@ -883,14 +883,16 @@ const Registration = () => {
   return (
     <div className="flex flex-col space-y-6">
       
-      {/* Toast Alert */}
-      {toast && (
-        <Toast 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast(null)} 
-        />
-      )}
+      {/* Background Page Elements (Suppressed when Print Student List Modal is Open) */}
+      <div className={showPrintStudentListModal ? 'no-print' : 'contents'}>
+        {/* Toast Alert */}
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => setToast(null)} 
+          />
+        )}
 
       {/* Main Tabs Container */}
       <AnimatePresence mode="wait">
@@ -2746,6 +2748,7 @@ const Registration = () => {
         onClose={() => setShowFeeSettingsModal(false)}
         onFeeUpdated={fetchCourses}
       />
+      </div>
 
       {/* Semester-wise / Session-wise Student Master List Print Modal */}
       <PrintStudentListModal

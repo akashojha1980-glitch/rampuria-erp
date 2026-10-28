@@ -348,6 +348,7 @@ router.get('/', protect, async (req, res) => {
   try {
     const { count, rows: students } = await Student.findAndCountAll({
       where: finalWhere,
+      distinct: true,
       ...paginationOpts,
       order
     });
