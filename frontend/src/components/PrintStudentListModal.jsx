@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Printer, Download, FileSpreadsheet, Filter, 
   Calendar, BookOpen, Layers, CheckCircle2, Users, 
   ArrowUpDown, RefreshCw, SlidersHorizontal, CheckSquare, Square,
-  Settings, Check, Eye, ChevronRight, FileText, Sparkles
+  Settings, Check, Eye, ChevronRight, FileText, Sparkles,
+  Search, Shield, CheckCheck, RotateCcw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PrintHeader from './print/PrintHeader';
@@ -381,6 +383,7 @@ const PrintStudentListModal = ({
 
   // Active Tab: 'filters' | 'columns'
   const [activeTab, setActiveTab] = useState('filters');
+  const [columnSearch, setColumnSearch] = useState('');
 
   // Filter States
   const [session, setSession] = useState(initialSession);
@@ -404,6 +407,28 @@ const PrintStudentListModal = ({
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   // Sync initialSession
   useEffect(() => {
@@ -438,14 +463,12 @@ const PrintStudentListModal = ({
         const rawList = data.students || [];
 
         // ─── STRICT CLIENT-SIDE DEDUPLICATION ───
-        // Fix for repeating students: keep only unique records by ID or unique composite key
         const seen = new Set();
         const deduplicated = [];
         for (const st of rawList) {
           const uniqueKey = st.id || st._id || st.registrationId || `${st.fullName}_${st.studentAccNo}`;
           if (!seen.has(uniqueKey)) {
             seen.add(uniqueKey);
-            // Apply client-side admissionBase filter if selected
             if (admissionBase === 'All' || !admissionBase || String(st.admissionBase).toUpperCase() === admissionBase.toUpperCase()) {
               deduplicated.push(st);
             }
@@ -501,6 +524,13 @@ const PrintStudentListModal = ({
   // Filtered active columns list
   const activeColumns = ALL_COLUMNS.filter(c => selectedColumnKeys.includes(c.id));
 
+  // Search filtered column list for checklist
+  const visibleCheckboxColumns = ALL_COLUMNS.filter(c => {
+    if (!columnSearch.trim()) return true;
+    const q = columnSearch.toLowerCase();
+    return c.label.toLowerCase().includes(q) || c.hindi.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
+  });
+
   // Handle direct browser print
   const handlePrint = () => {
     window.print();
@@ -546,15 +576,28 @@ const PrintStudentListModal = ({
   const printFontSizeClass = 
     fontSize === 'compact' ? 'text-[8px]' : fontSize === 'large' ? 'text-[10px]' : 'text-[9px]';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto animate-fade-in print:static print:bg-white print:p-0 print:m-0 print:overflow-visible print:inset-auto">
+  // ─── MODAL DOM PORTAL (Mounts directly onto document.body above Sidebar & Header) ───
+  const modalContent = (
+    <div 
+      id="print-modal-portal"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-fade-in"
+      onClick={(e) => {
+        // Close if clicked directly on outer backdrop
+        if (e.target.id === 'print-modal-portal') {
+          onClose();
+        }
+      }}
+    >
       
-      {/* ─── DYNAMIC PRINT CSS FOR PERFECT A4 FIT & TOTAL SUPPRESSION OF BACKGROUND ─── */}
+      {/* ─── DYNAMIC PRINT CSS FOR ZERO LEAKAGE & PERFECT A4 LAYOUT ─── */}
       <style>{`
         @media print {
           @page {
             size: A4 ${orientation};
-            margin: 7mm 7mm;
+            margin: 6mm 6mm;
+          }
+          #root {
+            display: none !important;
           }
           html, body {
             background: #ffffff !important;
@@ -563,15 +606,49 @@ const PrintStudentListModal = ({
             font-size: ${fontSize === 'compact' ? '8.5px' : fontSize === 'large' ? '10.5px' : '9.5px'} !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
           }
-          /* Ensure no background registration view leaks into print */
-          .no-print, aside, nav, header, footer, .navbar, .sidebar {
-            display: none !important;
-          }
-          #printable-student-list-container {
-            width: 100% !important;
+          #print-modal-portal {
+            position: static !important;
             display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #ffffff !important;
+            overflow: visible !important;
+            z-index: auto !important;
+          }
+          #print-modal-container {
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+          }
+          #printable-student-list {
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+          }
+          #printable-sheet {
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 0 !important;
+          }
+          .no-print {
+            display: none !important;
           }
           .student-print-table th, .student-print-table td {
             border: 1px solid #334155 !important;
@@ -594,39 +671,39 @@ const PrintStudentListModal = ({
         }
       `}</style>
 
-      {/* Main Modal Shell */}
+      {/* Main Modal Shell (Full Width & Clear Separation from Sidebar) */}
       <div 
-        id="printable-student-list-container"
-        className="bg-white dark:bg-darkbg-surface w-full max-w-7xl rounded-2xl shadow-2xl border border-warm-200 dark:border-darkbg-border flex flex-col max-h-[96vh] overflow-hidden print:max-h-none print:h-auto print:overflow-visible print:w-full print:max-w-none print:shadow-none print:border-none print:rounded-none"
+        id="print-modal-container"
+        className="bg-white dark:bg-[#121620] w-[98vw] max-w-7xl h-[94vh] max-h-[94vh] rounded-2xl shadow-2xl border border-slate-700/30 dark:border-darkbg-border flex flex-col overflow-hidden relative"
       >
         
         {/* ─── MODAL HEADER & CONTROLS (Hidden on Print) ─── */}
-        <div className="px-5 py-3 border-b border-warm-200 dark:border-darkbg-border bg-warm-50/90 dark:bg-darkbg-base no-print flex flex-col gap-2.5">
+        <div className="px-5 py-3 border-b border-warm-200 dark:border-darkbg-border bg-warm-50 dark:bg-darkbg-base no-print flex flex-col gap-2 shrink-0">
           
-          {/* Top Bar: Title, Count Badge, and Main Action Buttons */}
+          {/* Top Row: Title, Badges, Action Buttons */}
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center space-x-2.5">
-              <div className="p-2 bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 rounded-xl">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-indigo-600 text-white rounded-xl shadow-md">
                 <Printer className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-warm-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-base font-black text-warm-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <span>Student List Print & Customization Hub</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
                     {totalCount} Students Ready
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     {activeColumns.length} / {ALL_COLUMNS.length} Columns
                   </span>
                 </h3>
-                <p className="text-[11px] text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 font-medium">
                   Official Institutional Master Student Roll with MGSU-104 Header, Filters & Column Customization
                 </p>
               </div>
             </div>
 
             {/* Quick Actions (Export Excel, Direct Print, Close) */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2.5">
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -642,7 +719,7 @@ const PrintStudentListModal = ({
                 type="button"
                 onClick={handlePrint}
                 disabled={students.length === 0}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-1.5 active:scale-95"
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center space-x-2 active:scale-95"
               >
                 <Printer className="w-4 h-4" />
                 <span>Print Document (A4)</span>
@@ -651,15 +728,15 @@ const PrintStudentListModal = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-warm-100 dark:hover:bg-darkbg-border rounded-xl transition-all"
-                title="Close Modal"
+                className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-warm-100 dark:hover:bg-darkbg-border rounded-xl transition-all"
+                title="Close (Esc)"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* ─── TAB SWITCHER (Filters vs Columns & Print Options) ─── */}
+          {/* ─── TAB SWITCHER (Filters vs Columns) ─── */}
           <div className="flex items-center justify-between border-b border-warm-200/80 dark:border-darkbg-border pt-1">
             <div className="flex space-x-2">
               <button
@@ -692,30 +769,30 @@ const PrintStudentListModal = ({
               </button>
             </div>
 
-            {/* Live Orientation & Font Indicator */}
-            <div className="hidden md:flex items-center space-x-3 text-[10px] text-slate-500 font-bold">
+            {/* Live Indicator */}
+            <div className="hidden md:flex items-center space-x-3 text-[11px] text-slate-500 font-bold">
               <span>Layout: <strong className="text-indigo-600 uppercase">{orientation}</strong></span>
               <span>•</span>
               <span>Font: <strong className="text-indigo-600 uppercase">{fontSize}</strong></span>
             </div>
           </div>
 
-          {/* ─── TAB 1: FILTERS VIEW ─── */}
+          {/* ─── TAB 1: SPACIOUS 2-ROW FILTERS VIEW (Full Readability, No Truncation) ─── */}
           {activeTab === 'filters' && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-2 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 animate-fade-in">
               
-              {/* Session Filter */}
+              {/* 1. Session Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <Calendar className="w-2.5 h-2.5" />
-                  <span>Session / Batch</span>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-indigo-500" />
+                  <span>Academic Session / Batch</span>
                 </label>
                 <select
                   value={session}
                   onChange={(e) => setSession(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All Sessions">All Sessions</option>
+                  <option value="All Sessions">All Sessions (सभी सत्र)</option>
                   {Array.from(new Set([
                     '2024-25',
                     '2025-26',
@@ -728,18 +805,18 @@ const PrintStudentListModal = ({
                 </select>
               </div>
 
-              {/* Course Filter */}
+              {/* 2. Course Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <BookOpen className="w-2.5 h-2.5" />
-                  <span>Course</span>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <BookOpen className="w-3 h-3 text-indigo-500" />
+                  <span>Course Applied</span>
                 </label>
                 <select
                   value={course}
                   onChange={(e) => setCourse(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All">All Courses</option>
+                  <option value="All">All Courses (सभी पाठ्यक्रम)</option>
                   <option value="Bachelor of Laws (L.L.B.)">Bachelor of Laws (L.L.B.)</option>
                   <option value="B.A. L.L.B. Integrated">B.A. L.L.B. Integrated</option>
                   <option value="Master of Laws (L.L.M.)">Master of Laws (L.L.M.)</option>
@@ -749,18 +826,18 @@ const PrintStudentListModal = ({
                 </select>
               </div>
 
-              {/* Semester Filter (KEY USER REQUIREMENT) */}
+              {/* 3. Semester Filter (KEY USER REQUIREMENT) */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
-                  <Layers className="w-2.5 h-2.5" />
+                <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
+                  <Layers className="w-3 h-3 text-indigo-600" />
                   <span>Semester / Term *</span>
                 </label>
                 <select
                   value={semester}
                   onChange={(e) => setSemester(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border-2 border-indigo-400 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-xs font-black text-indigo-900 dark:text-indigo-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border-2 border-indigo-400 dark:border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/30 text-xs font-black text-indigo-950 dark:text-indigo-200 outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="All">All Semesters (Whole Session)</option>
+                  <option value="All">All Semesters (सम्पूर्ण सत्र सूची)</option>
                   <option value="I & II Semester">I & II Semester (1st Year)</option>
                   <option value="1st Sem">1st Semester / Sem I</option>
                   <option value="2nd Sem">2nd Semester / Sem II</option>
@@ -772,48 +849,51 @@ const PrintStudentListModal = ({
                 </select>
               </div>
 
-              {/* Academic Year Filter */}
+              {/* 4. Academic Year Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Academic Year</label>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <GraduationCap className="w-3 h-3 text-indigo-500" />
+                  <span>Academic Year</span>
+                </label>
                 <select
                   value={academicYear}
                   onChange={(e) => setAcademicYear(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All">All Years</option>
-                  <option value="1st Year">1st Year</option>
-                  <option value="2nd Year">2nd Year</option>
-                  <option value="3rd Year">3rd Year</option>
-                  <option value="4th Year">4th Year</option>
-                  <option value="5th Year">5th Year</option>
+                  <option value="All">All Years (सभी वर्ष)</option>
+                  <option value="1st Year">1st Year (प्रथम वर्ष)</option>
+                  <option value="2nd Year">2nd Year (द्वितीय वर्ष)</option>
+                  <option value="3rd Year">3rd Year (तृतीय वर्ष)</option>
+                  <option value="4th Year">4th Year (चतुर्थ वर्ष)</option>
+                  <option value="5th Year">5th Year (पंचम वर्ष)</option>
                 </select>
               </div>
 
-              {/* Admission Base Filter */}
+              {/* 5. Admission Base Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Admission Base</label>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Admission Base</label>
                 <select
                   value={admissionBase}
                   onChange={(e) => setAdmissionBase(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All">All Bases</option>
-                  <option value="UG">UG Merit</option>
-                  <option value="PG">PG Merit</option>
+                  <option value="All">All Bases (UG / PG / Direct)</option>
+                  <option value="UG">UG Merit (स्नातक आधार)</option>
+                  <option value="PG">PG Merit (स्नातकोत्तर)</option>
                   <option value="Entrance">Entrance Exam</option>
-                  <option value="Direct">Direct / Mgmt</option>
+                  <option value="Direct">Direct / Management</option>
                 </select>
               </div>
 
-              {/* Category Filter */}
+              {/* 6. Category Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Category</label>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All">All Categories</option>
+                  <option value="All">All Categories (सभी वर्ग)</option>
                   <option value="General">General</option>
                   <option value="OBC">OBC</option>
                   <option value="SC">SC</option>
@@ -823,30 +903,30 @@ const PrintStudentListModal = ({
                 </select>
               </div>
 
-              {/* Gender Filter */}
+              {/* 7. Gender Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Gender</label>
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Gender</label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
-                  <option value="All">All Genders</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  <option value="All">All Genders (सभी)</option>
+                  <option value="Male">Male (पुरुष)</option>
+                  <option value="Female">Female (महिला)</option>
                 </select>
               </div>
 
-              {/* Sort By Filter */}
+              {/* 8. Sort By Filter */}
               <div className="flex flex-col space-y-0.5">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                  <ArrowUpDown className="w-2.5 h-2.5" />
+                <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <ArrowUpDown className="w-3 h-3 text-indigo-500" />
                   <span>Sort Order</span>
                 </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-2 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                  className="px-3 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                 >
                   <option value="accNo_asc">A/C No. (1001, 1002...)</option>
                   <option value="name_asc">Student Name (A-Z)</option>
@@ -860,10 +940,12 @@ const PrintStudentListModal = ({
 
           {/* ─── TAB 2: INCLUDED DETAILS & PRINT OPTIONS VIEW ─── */}
           {activeTab === 'columns' && (
-            <div className="flex flex-col space-y-3 pt-2 animate-fade-in">
+            <div className="flex flex-col space-y-2.5 pt-1 animate-fade-in">
               
               {/* Presets and Quick Toggles */}
               <div className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-darkbg-surface p-2.5 rounded-xl border border-warm-200 dark:border-darkbg-border shadow-xs">
+                
+                {/* Left: Presets */}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider mr-1">Presets:</span>
                   {PRESETS.map(p => (
@@ -871,7 +953,7 @@ const PrintStudentListModal = ({
                       key={p.id}
                       type="button"
                       onClick={() => handleApplyPreset(p.columns)}
-                      className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-all active:scale-95 flex items-center gap-1"
+                      className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-all active:scale-95 flex items-center gap-1"
                       title={p.hindi}
                     >
                       <Sparkles className="w-3 h-3 text-indigo-500" />
@@ -888,42 +970,46 @@ const PrintStudentListModal = ({
                   <button
                     type="button"
                     onClick={handleResetColumns}
-                    className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-all"
+                    className="px-2.5 py-1 text-[10px] font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition-all flex items-center gap-1"
                   >
-                    Reset Default
+                    <RotateCcw className="w-2.5 h-2.5" />
+                    <span>Reset Default</span>
                   </button>
                 </div>
 
-                {/* Print Settings: Orientation & Font Size */}
-                <div className="flex items-center space-x-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                {/* Right: Print Formatting Toggles */}
+                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  
+                  {/* Orientation */}
                   <div className="flex items-center space-x-1">
                     <span className="text-[10px] text-slate-500 uppercase font-black">Orientation:</span>
                     <button
                       type="button"
                       onClick={() => setOrientation('landscape')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
                         orientation === 'landscape' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      Landscape (Horizontal)
+                      Landscape
                     </button>
                     <button
                       type="button"
                       onClick={() => setOrientation('portrait')}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
                         orientation === 'portrait' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      Portrait (Vertical)
+                      Portrait
                     </button>
                   </div>
 
+                  {/* Font Size */}
                   <div className="flex items-center space-x-1 border-l border-slate-300 dark:border-slate-700 pl-3">
-                    <span className="text-[10px] text-slate-500 uppercase font-black">Font Size:</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-black">Font:</span>
                     <select
                       value={fontSize}
                       onChange={(e) => setFontSize(e.target.value)}
-                      className="px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-darkbg-surface text-[10px] font-bold outline-none"
+                      className="px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-darkbg-surface text-[10px] font-bold outline-none"
                     >
                       <option value="compact">Compact (8.5px)</option>
                       <option value="standard">Standard (9.5px)</option>
@@ -931,7 +1017,8 @@ const PrintStudentListModal = ({
                     </select>
                   </div>
 
-                  <div className="flex items-center space-x-2 border-l border-slate-300 dark:border-slate-700 pl-3">
+                  {/* Header & Signatures */}
+                  <div className="flex items-center space-x-2.5 border-l border-slate-300 dark:border-slate-700 pl-3">
                     <label className="flex items-center space-x-1 cursor-pointer text-[10px]">
                       <input 
                         type="checkbox" 
@@ -952,12 +1039,31 @@ const PrintStudentListModal = ({
                       <span>Signatures</span>
                     </label>
                   </div>
+
+                </div>
+
+              </div>
+
+              {/* Column Search Filter */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                  Check/uncheck columns to include or exclude from print:
+                </span>
+                <div className="relative w-56">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={columnSearch}
+                    onChange={(e) => setColumnSearch(e.target.value)}
+                    placeholder="Search column name..."
+                    className="w-full pl-8 pr-2 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-darkbg-surface outline-none"
+                  />
                 </div>
               </div>
 
               {/* Column Checkboxes Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50/50 dark:bg-darkbg-base/30 rounded-xl border border-warm-200/60 dark:border-darkbg-border">
-                {ALL_COLUMNS.map(col => {
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-44 overflow-y-auto p-1.5 bg-slate-50 dark:bg-darkbg-base/40 rounded-xl border border-warm-200/60 dark:border-darkbg-border">
+                {visibleCheckboxColumns.map(col => {
                   const isChecked = selectedColumnKeys.includes(col.id);
                   return (
                     <div
@@ -994,10 +1100,10 @@ const PrintStudentListModal = ({
 
         </div>
 
-        {/* ─── PRINTABLE DOCUMENT PREVIEW AREA ─── */}
+        {/* ─── PRINTABLE DOCUMENT PREVIEW AREA (Canvas Sheet View) ─── */}
         <div 
           ref={printRef}
-          className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white text-slate-900 select-text print:p-0 print:m-0 print:overflow-visible"
+          className="flex-1 overflow-auto p-3 sm:p-5 bg-slate-100 dark:bg-slate-950/60 select-text print:p-0 print:m-0 print:bg-white"
           id="printable-student-list"
         >
           {loading ? (
@@ -1014,7 +1120,10 @@ const PrintStudentListModal = ({
               No students found matching the selected session ({session}), course, and semester criteria.
             </div>
           ) : (
-            <div className="w-full">
+            <div 
+              id="printable-sheet"
+              className="mx-auto bg-white text-slate-900 shadow-xl border border-slate-300 rounded-xl p-5 sm:p-7 w-full max-w-full transition-all print:shadow-none print:border-none print:p-0 print:m-0 print:rounded-none"
+            >
               
               {/* ─── Institutional Header ─── */}
               {showHeader && (
@@ -1102,7 +1211,7 @@ const PrintStudentListModal = ({
         </div>
 
         {/* ─── MODAL FOOTER (Hidden on Print) ─── */}
-        <div className="px-5 py-3 border-t border-warm-200 dark:border-darkbg-border bg-warm-50/70 dark:bg-darkbg-base/70 no-print flex items-center justify-between">
+        <div className="px-5 py-2.5 border-t border-warm-200 dark:border-darkbg-border bg-warm-50 dark:bg-darkbg-base no-print flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
             <span>Viewing <strong>{students.length}</strong> students for <strong>{session}</strong> ({semester === 'All' ? 'All Semesters' : semester})</span>
             <span>•</span>
@@ -1120,7 +1229,7 @@ const PrintStudentListModal = ({
               type="button"
               onClick={handlePrint}
               disabled={students.length === 0}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center space-x-1.5 active:scale-95"
+              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center space-x-2"
             >
               <Printer className="w-4 h-4" />
               <span>Print Student List</span>
@@ -1131,6 +1240,8 @@ const PrintStudentListModal = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default PrintStudentListModal;
