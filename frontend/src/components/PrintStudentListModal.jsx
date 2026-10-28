@@ -5,7 +5,7 @@ import {
   Calendar, BookOpen, Layers, CheckCircle2, Users, 
   ArrowUpDown, RefreshCw, SlidersHorizontal, CheckSquare, Square,
   Settings, Check, Eye, ChevronRight, FileText, Sparkles,
-  Search, Shield, CheckCheck, RotateCcw
+  Search, Shield, CheckCheck, RotateCcw, GraduationCap
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import PrintHeader from './print/PrintHeader';
