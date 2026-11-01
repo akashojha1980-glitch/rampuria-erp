@@ -116,19 +116,15 @@ function generateInvoice(outputPath) {
   // Left Column: Client Details (Width constrained to 320 pt)
   const clientLeftW = 320;
   doc.font('Helvetica-Bold').fontSize(8).fillColor(brandIndigo);
-  doc.text('BILL TO (CLIENT INSTITUTION):', margin + 10, currY + 7, { width: clientLeftW });
+  doc.text('BILL TO (CLIENT INSTITUTION):', margin + 10, currY + 8, { width: clientLeftW });
 
-  doc.font('Helvetica-Bold').fontSize(10.5).fillColor(primaryDark);
-  doc.text('B.J.S. RAMPURIA JAIN LAW COLLEGE', margin + 10, currY + 19, { width: clientLeftW });
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(primaryDark);
+  doc.text('B.J.S. RAMPURIA JAIN LAW COLLEGE', margin + 10, currY + 22, { width: clientLeftW });
 
-  doc.font('Helvetica').fontSize(7.2).fillColor(textMuted);
-  doc.text('Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU)', margin + 10, currY + 33, { width: clientLeftW, lineGap: 1.2 });
-  doc.text('Approved by Bar Council of India (BCI)', margin + 10, currY + 46, { width: clientLeftW });
-
-  doc.font('Helvetica-Bold').fontSize(7.2).fillColor(textDark);
-  doc.text('Address: ', margin + 10, currY + 58, { continued: true });
-  doc.font('Helvetica').fontSize(7.2).fillColor(textDark);
-  doc.text('J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan', { width: clientLeftW });
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(textDark);
+  doc.text('Campus Address:', margin + 10, currY + 38);
+  doc.font('Helvetica').fontSize(7.5).fillColor(textMuted);
+  doc.text('J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan', margin + 82, currY + 38, { width: clientLeftW - 82, lineGap: 1.2 });
 
   // Vertical Separator in Client Box
   const clientDividerX = margin + 335;
@@ -140,15 +136,14 @@ function generateInvoice(outputPath) {
 
   const printClientRightRow = (lbl, val, yOff, isBlue = false) => {
     doc.font('Helvetica-Bold').fontSize(7.5).fillColor(primaryDark);
-    doc.text(lbl, clientRightX, currY + yOff, { width: 68 });
+    doc.text(lbl, clientRightX, currY + yOff, { width: 75 });
     doc.font(isBlue ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).fillColor(isBlue ? brandBlue : textDark);
-    doc.text(val, clientRightX + 70, currY + yOff, { width: clientRightW - 70 });
+    doc.text(val, clientRightX + 78, currY + yOff, { width: clientRightW - 78 });
   };
 
-  printClientRightRow('College Code:', 'MGSU-104', 8, true);
-  printClientRightRow('Kind Attn:', 'The Principal / Management', 23);
-  printClientRightRow('Campus Email:', 'info@rampurialaw.com', 38);
-  printClientRightRow('Deployment:', 'On-Premise Local ERP Node', 53);
+  printClientRightRow('Kind Attn:', 'The Principal / Management', 12);
+  printClientRightRow('Deployment:', 'On-Premise Local ERP Node', 28);
+  printClientRightRow('Project Ref:', 'Pankh Gold ERP v2.4 (Campus)', 44, true);
 
   // ─── MAIN COMMERCIAL ITEMS TABLE ───
   currY += clientBoxH + 10; // y = 210
@@ -190,7 +185,7 @@ function generateInvoice(outputPath) {
   doc.text('Pankh Gold College Management ERP - Enterprise Local Edition', colDescX + 6, currY + 8, { width: colDescW - 12 });
 
   doc.font('Helvetica').fontSize(7).fillColor(textMuted);
-  const row1Desc = 'Full-scale desktop & local LAN college management system tailored for B.J.S. Rampuria Jain Law College. Modules: Multi-Session Student Admission, Bulk Excel Importer, Fees & Installments Engine, Double-Entry Day Book Finance, Merit & Promotion System, Student 360 Dossier, Institutional Print Engine with MGSU-104 Crest & MS SQL Server 2022 Local Synchronization.';
+  const row1Desc = 'Full-scale desktop & local LAN college management system tailored for B.J.S. Rampuria Jain Law College. Modules: Multi-Session Student Admission, Bulk Excel Importer, Fees & Installments Engine, Double-Entry Day Book Finance, Merit & Promotion System, Student 360 Dossier, Institutional Print Engine with Custom College Masthead & MS SQL Server 2022 Local Synchronization.';
   doc.text(row1Desc, colDescX + 6, currY + 20, { width: colDescW - 14, lineGap: 1.5 });
 
   doc.font('Helvetica').fontSize(7.5).fillColor(textDark);
@@ -427,7 +422,7 @@ function generateInvoice(outputPath) {
     },
     {
       title: 'Institutional Print & Master Roll Hub',
-      desc: 'Official semester-wise student rolls featuring MGSU-104 college crest, BCI/ALU affiliations, 23 customizable columns, landscape/portrait mode & 3-tier signature blocks.'
+      desc: 'Official semester-wise student rolls featuring custom institutional masthead, 23 customizable columns, landscape/portrait mode & 3-tier signature blocks.'
     },
     {
       title: 'MS SQL Server 2022 & Offline LAN Architecture',
