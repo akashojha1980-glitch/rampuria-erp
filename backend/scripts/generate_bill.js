@@ -67,14 +67,14 @@ function generateInvoice(outputPath) {
   doc.font('Helvetica-Bold').fontSize(15).fillColor(primaryDark);
   doc.text('RUCHIKA SOFTWARE SOLUTION', headerLeftX, topY, { width: headerLeftW });
 
-  doc.font('Helvetica-Bold').fontSize(8).fillColor(accentGold);
-  doc.text('ENTERPRISE IT SOLUTIONS & ACADEMIC ERP DEVELOPMENT', headerLeftX, topY + 18, { width: headerLeftW });
+  doc.font('Helvetica-Bold').fontSize(7.5).fillColor(accentGold);
+  doc.text('PANKH GOLD TECHNOLOGIES  •  HEAD OFFICE: JODHPUR (RAJASTHAN)', headerLeftX, topY + 18, { width: headerLeftW });
 
   doc.font('Helvetica').fontSize(7.5).fillColor(textMuted);
   doc.text('Web: ruchikasoftwaresolution.com   |   Email: admn@ruchikasoftwaresolution.com', headerLeftX, topY + 30, { width: headerLeftW });
   
   doc.font('Helvetica-Bold').fontSize(7.5).fillColor(textDark);
-  doc.text('Direct Support: ', headerLeftX, topY + 41, { continued: true });
+  doc.text('Support & Billing: ', headerLeftX, topY + 41, { continued: true });
   doc.font('Helvetica').fontSize(7.5).fillColor(textMuted);
   doc.text('+91 96100 77159 (Deepak Ojha)  |  +91 63756 45010 (Akash Ojha)', { width: headerLeftW });
 
@@ -118,12 +118,17 @@ function generateInvoice(outputPath) {
   doc.font('Helvetica-Bold').fontSize(8).fillColor(brandIndigo);
   doc.text('BILL TO (CLIENT INSTITUTION):', margin + 10, currY + 7, { width: clientLeftW });
 
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(primaryDark);
-  doc.text('B.J.S. RAMPURIA JAIN LAW COLLEGE', margin + 10, currY + 20, { width: clientLeftW });
+  doc.font('Helvetica-Bold').fontSize(10.5).fillColor(primaryDark);
+  doc.text('B.J.S. RAMPURIA JAIN LAW COLLEGE', margin + 10, currY + 19, { width: clientLeftW });
 
-  doc.font('Helvetica').fontSize(7.5).fillColor(textMuted);
-  doc.text('Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU)', margin + 10, currY + 35, { width: clientLeftW, lineGap: 1.5 });
-  doc.text('Approved by Bar Council of India (BCI)  |  Near Fort, Bikaner - 334001 (Rajasthan)', margin + 10, currY + 54, { width: clientLeftW });
+  doc.font('Helvetica').fontSize(7.2).fillColor(textMuted);
+  doc.text('Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU)', margin + 10, currY + 33, { width: clientLeftW, lineGap: 1.2 });
+  doc.text('Approved by Bar Council of India (BCI)', margin + 10, currY + 46, { width: clientLeftW });
+
+  doc.font('Helvetica-Bold').fontSize(7.2).fillColor(textDark);
+  doc.text('Address: ', margin + 10, currY + 58, { continued: true });
+  doc.font('Helvetica').fontSize(7.2).fillColor(textDark);
+  doc.text('J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan', { width: clientLeftW });
 
   // Vertical Separator in Client Box
   const clientDividerX = margin + 335;
@@ -369,7 +374,7 @@ function generateInvoice(outputPath) {
   doc.text('Authorized Signatory / Founder', signBoxX, currY + 72, { width: signBoxW, align: 'center' });
 
   doc.font('Helvetica').fontSize(6.5).fillColor(textMuted);
-  doc.text('Ruchika Software Solution, Bikaner', signBoxX, currY + 82, { width: signBoxW, align: 'center' });
+  doc.text('Ruchika Software Solution  •  H.O. Jodhpur', signBoxX, currY + 82, { width: signBoxW, align: 'center' });
 
   // Bottom Notice
   currY += footerBoxH + 6;
@@ -560,7 +565,7 @@ function generateInvoice(outputPath) {
   p2Y += 4;
 
   // Dual Sign-off Block
-  const dualSignH = 56;
+  const dualSignH = 60;
   doc.rect(margin, p2Y, contentWidth, dualSignH).fill(lightBg);
   doc.rect(margin, p2Y, contentWidth, dualSignH).lineWidth(0.8).strokeColor(borderLight).stroke();
 
@@ -572,8 +577,9 @@ function generateInvoice(outputPath) {
   doc.font('Helvetica-Bold').fontSize(8).fillColor(brandIndigo);
   doc.text('RUCHIKA SOFTWARE SOLUTION', margin + 12, p2Y + 18);
   doc.font('Helvetica').fontSize(6.5).fillColor(textMuted);
-  doc.text('Deepak Ojha (+91 96100 77159)  |  Akash Ojha (+91 63756 45010)', margin + 12, p2Y + 29);
-  doc.text('Email: admn@ruchikasoftwaresolution.com  |  Bikaner (Raj.)', margin + 12, p2Y + 39);
+  doc.text('Pankh Gold Technologies  •  Head Office: Jodhpur (Rajasthan)', margin + 12, p2Y + 28);
+  doc.text('Contact: +91 96100 77159 (Deepak Ojha)  |  +91 63756 45010 (Akash Ojha)', margin + 12, p2Y + 38);
+  doc.text('Email: admn@ruchikasoftwaresolution.com  |  Web: ruchikasoftwaresolution.com', margin + 12, p2Y + 48);
 
   // Right Signatory (Client Institution)
   const rightDualX = margin + dualColW + 10;
@@ -581,9 +587,11 @@ function generateInvoice(outputPath) {
   doc.text('ACCEPTED & CONFIRMED BY:', rightDualX, p2Y + 7);
   doc.font('Helvetica-Bold').fontSize(8).fillColor(primaryDark);
   doc.text('B.J.S. RAMPURIA JAIN LAW COLLEGE, BIKANER', rightDualX, p2Y + 18);
+  doc.font('Helvetica').fontSize(6.5).fillColor(textMuted);
+  doc.text('J.N.V. Circle in Sector-III, J.N.V. Colony, Bikaner (Rajasthan)', rightDualX, p2Y + 28);
   doc.font('Helvetica-Oblique').fontSize(6.5).fillColor(textMuted);
-  doc.text('Authorized Signatory (Principal / Secretary / Accounts)', rightDualX, p2Y + 29);
-  doc.text('Official Seal & Date: ______________________________', rightDualX, p2Y + 40);
+  doc.text('Authorized Signatory (Principal / Secretary / Management)', rightDualX, p2Y + 38);
+  doc.text('Official Seal & Date: ________________________________', rightDualX, p2Y + 48);
 
   // Footer Tagline
   p2Y += dualSignH + 8;

@@ -18,7 +18,7 @@ const PrintHeader = ({
   generatedBy = null,
   collegeName = 'B.J.S. RAMPURIA JAIN LAW COLLEGE',
   affiliation = 'Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU) • Approved by Bar Council of India (BCI)',
-  address = 'Near Fort, Bikaner - 334001 (Rajasthan) | Phone: 0151-2200115, 0151-2230132 | Email: info@rampurialaw.com',
+  address = 'J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115, 0151-2230132 | Email: info@rampurialaw.com',
   extraMeta = []
 }) => {
   // Current logged-in user fallback
