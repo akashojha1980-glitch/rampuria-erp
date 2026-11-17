@@ -1143,7 +1143,7 @@ const ProfileCard = () => {
         {/* Double border header box */}
         <div className="border-4 border-double border-black p-4 flex flex-col items-center justify-center text-center space-y-1 relative mb-6">
           <h1 className="text-xl font-bold tracking-tight uppercase">B.J.S. Rampuria Jain Law College, Bikaner</h1>
-          <h2 className="text-xs font-semibold uppercase">(Affiliated to Maharaja Ganga Singh University, Bikaner)</h2>
+          <h2 className="text-xs font-medium text-slate-700">J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan</h2>
           <h3 className="text-sm font-black underline uppercase mt-2 tracking-wide">ADMISSION APPLICATION FORM (ACADEMIC YEAR 2026-27)</h3>
           
           {/* Form and account numbers row */}

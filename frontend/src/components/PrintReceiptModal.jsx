@@ -66,11 +66,8 @@ const ReceiptBlock = ({ payment, studentData, copyType = 'STUDENT COPY' }) => {
           <h1 className="text-lg sm:text-xl font-serif font-black tracking-tight uppercase text-slate-950 leading-tight">
             B.J.S. Rampuria Jain Law College
           </h1>
-          <p className="text-[10px] font-bold text-slate-700 leading-snug">
-            Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU)
-          </p>
-          <p className="text-[9.5px] text-slate-600">
-            Near Fort, Bikaner - 334001 (Raj.) | Phone: 0151-2200115 | Email: info@rampurialaw.com
+          <p className="text-[9.5px] text-slate-600 mt-0.5">
+            J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115
           </p>
         </div>
 
@@ -79,7 +76,7 @@ const ReceiptBlock = ({ payment, studentData, copyType = 'STUDENT COPY' }) => {
             {copyType}
           </span>
           <div className="text-[8.5px] text-slate-500 font-mono mt-1">
-            CODE: MGSU-104
+            OFFICIAL RECEIPT
           </div>
         </div>
       </div>

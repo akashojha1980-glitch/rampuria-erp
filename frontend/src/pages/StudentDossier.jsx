@@ -325,7 +325,7 @@ const StudentDossier = () => {
                       {(student.gradUniversity || student.gradYear || student.gradPercentage) && (
                         <tr>
                           <td className="px-3 py-2.5 font-bold border-r border-warm-200 dark:border-darkbg-border">Graduation Degree</td>
-                          <td className="px-3 py-2.5 border-r border-warm-200 dark:border-darkbg-border">{student.gradUniversity || 'MGSU / Rajasthan Univ'}</td>
+                          <td className="px-3 py-2.5 border-r border-warm-200 dark:border-darkbg-border">{student.gradUniversity || '-'}</td>
                           <td className="px-3 py-2.5 border-r border-warm-200 dark:border-darkbg-border">{student.gradYear || 'N/A'}</td>
                           <td className="px-3 py-2.5 border-r border-warm-200 dark:border-darkbg-border">{student.gradSubject || 'B.A. / B.Com / B.Sc'}</td>
                           <td className="px-3 py-2.5 border-r border-warm-200 dark:border-darkbg-border">{student.gradMaxMarks || 'N/A'}</td>
@@ -643,7 +643,7 @@ const StudentDossier = () => {
                   {(student.gradUniversity || student.gradYear || student.gradPercentage) && (
                     <tr>
                       <td className="px-1.5 py-0.5 font-bold border-r border-black">Graduation Degree</td>
-                      <td className="px-1.5 py-0.5 border-r border-black">{student.gradUniversity || 'MGSU / Rajasthan Univ'}</td>
+                      <td className="px-1.5 py-0.5 border-r border-black">{student.gradUniversity || '-'}</td>
                       <td className="px-1.5 py-0.5 border-r border-black">{student.gradYear || 'N/A'}</td>
                       <td className="px-1.5 py-0.5 border-r border-black">{student.gradMaxMarks || 'N/A'}</td>
                       <td className="px-1.5 py-0.5 border-r border-black">{student.gradObtainedMarks || 'N/A'}</td>

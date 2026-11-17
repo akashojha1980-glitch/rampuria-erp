@@ -17,8 +17,8 @@ const PrintHeader = ({
   session = null,
   generatedBy = null,
   collegeName = 'B.J.S. RAMPURIA JAIN LAW COLLEGE',
-  affiliation = 'Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU) • Approved by Bar Council of India (BCI)',
-  address = 'J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115, 0151-2230132 | Email: info@rampurialaw.com',
+  affiliation = null,
+  address = 'J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115',
   extraMeta = []
 }) => {
   // Current logged-in user fallback
@@ -70,19 +70,21 @@ const PrintHeader = ({
           <h1 className="text-xl sm:text-2xl font-serif font-black tracking-tight uppercase text-slate-950 leading-tight">
             {collegeName}
           </h1>
-          <p className="text-[11px] font-bold text-slate-800 leading-snug mt-0.5">
-            {affiliation}
-          </p>
+          {affiliation && (
+            <p className="text-[11px] font-bold text-slate-800 leading-snug mt-0.5">
+              {affiliation}
+            </p>
+          )}
           <p className="text-[10px] text-slate-600 mt-0.5 font-medium">
             {address}
           </p>
         </div>
 
         {/* Right: UGC / NAAC Seal or Ref Badge */}
-        <div className="w-20 shrink-0 text-right hidden sm:flex flex-col items-end justify-center text-[9px] font-mono font-bold text-slate-700 leading-tight">
+        <div className="w-24 shrink-0 text-right hidden sm:flex flex-col items-end justify-center text-[9px] font-mono font-bold text-slate-700 leading-tight">
           <div className="border border-slate-900 px-2 py-1 rounded text-center bg-slate-50 w-full">
-            <span className="block text-[8px] uppercase tracking-wider text-slate-500 font-sans">College Code</span>
-            <span className="text-xs font-black font-mono text-slate-900">MGSU-104</span>
+            <span className="block text-[8px] uppercase tracking-wider text-slate-500 font-sans">CAMPUS ERP</span>
+            <span className="text-[10px] font-black font-sans text-slate-900">VERIFIED</span>
           </div>
           <span className="text-[8px] text-slate-500 mt-1">ISO 9001:2015</span>
         </div>

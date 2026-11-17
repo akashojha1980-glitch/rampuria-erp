@@ -242,14 +242,20 @@ const ALL_COLUMNS = [
     headerClass: 'text-left',
     cellClass: 'text-left text-slate-800 font-medium',
     render: (s) => {
+      const rawUniv = (s.qualUniversity || s.gradUniversity || '').trim();
+      const cleanUniv = /mgsu|maharaja|ambedkar|bhimrao/i.test(rawUniv) ? '' : rawUniv;
       const parts = [
         s.qualExamName || s.gradSubject,
-        s.qualUniversity || s.gradUniversity ? `(${s.qualUniversity || s.gradUniversity})` : null
+        cleanUniv ? `(${cleanUniv})` : null
       ].filter(Boolean);
       return parts.length ? parts.join(' ') : (s.admissionBase || 'UG');
     },
     exportHeader: 'Qualifying Degree / Exam',
-    exportVal: (s) => `${s.qualExamName || s.gradSubject || ''} ${s.qualUniversity || s.gradUniversity || ''}`.trim()
+    exportVal: (s) => {
+      const rawUniv = (s.qualUniversity || s.gradUniversity || '').trim();
+      const cleanUniv = /mgsu|maharaja|ambedkar|bhimrao/i.test(rawUniv) ? '' : rawUniv;
+      return `${s.qualExamName || s.gradSubject || ''} ${cleanUniv}`.trim() || (s.admissionBase || 'UG');
+    }
   },
   { 
     id: 'percentage', 
@@ -557,13 +563,47 @@ const PrintStudentListModal = ({
 
   // Demographic Statistics
   const totalCount = students.length;
-  const maleCount = students.filter(s => String(s.gender || '').toLowerCase().startsWith('m')).length;
-  const femaleCount = students.filter(s => String(s.gender || '').toLowerCase().startsWith('f')).length;
-  const genCount = students.filter(s => String(s.category || '').toUpperCase().includes('GEN')).length;
-  const obcCount = students.filter(s => String(s.category || '').toUpperCase().includes('OBC')).length;
-  const scCount = students.filter(s => String(s.category || '').toUpperCase().includes('SC')).length;
-  const stCount = students.filter(s => String(s.category || '').toUpperCase().includes('ST')).length;
-  const ewsCount = students.filter(s => String(s.category || '').toUpperCase().includes('EWS')).length;
+  const isMale = (s) => String(s.gender || '').toLowerCase().startsWith('m');
+  const isFemale = (s) => String(s.gender || '').toLowerCase().startsWith('f');
+  const maleCount = students.filter(isMale).length;
+  const femaleCount = students.filter(isFemale).length;
+
+  const getCatStats = (catName) => {
+    const list = students.filter(s => {
+      const c = String(s.category || '').toUpperCase().trim();
+      if (catName === 'General') return c === 'GEN' || c === 'GENERAL' || c.startsWith('GEN');
+      if (catName === 'OBC') return c === 'OBC' || c.startsWith('OBC');
+      if (catName === 'SC') return c === 'SC' || c.startsWith('SC');
+      if (catName === 'ST') return c === 'ST' || c.startsWith('ST');
+      if (catName === 'EWS') return c === 'EWS' || c.startsWith('EWS');
+      if (catName === 'MBC') return c === 'MBC' || c.startsWith('MBC');
+      return false;
+    });
+    const total = list.length;
+    const m = list.filter(isMale).length;
+    const f = list.filter(isFemale).length;
+    return { total, m, f };
+  };
+
+  const genStats = getCatStats('General');
+  const obcStats = getCatStats('OBC');
+  const scStats = getCatStats('SC');
+  const stStats = getCatStats('ST');
+  const ewsStats = getCatStats('EWS');
+  const mbcStats = getCatStats('MBC');
+
+  const categoryBreakdownList = [
+    { label: 'General', stats: genStats },
+    { label: 'OBC', stats: obcStats },
+    { label: 'SC', stats: scStats },
+    { label: 'ST', stats: stStats },
+    { label: 'EWS', stats: ewsStats },
+    ...(mbcStats.total > 0 ? [{ label: 'MBC', stats: mbcStats }] : [])
+  ];
+
+  const categorySummaryString = categoryBreakdownList
+    .map(c => `${c.label}: ${c.stats.total} (M: ${c.stats.m}, F: ${c.stats.f})`)
+    .join(' | ');
 
   const displaySemesterTitle = semester === 'All' || semester === 'All Semesters' 
     ? 'ALL SEMESTERS (COMPLETE BATCH)' 
@@ -697,7 +737,7 @@ const PrintStudentListModal = ({
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Official Institutional Master Student Roll with MGSU-104 Header, Filters & Column Customization
+                  Official Institutional Master Student Roll, Filters & Column Customization
                 </p>
               </div>
             </div>
@@ -1131,12 +1171,11 @@ const PrintStudentListModal = ({
                   title="SEMESTER-WISE STUDENT ENROLLMENT & MASTER ROLL"
                   subtitle={`ACADEMIC SESSION: ${session} • COURSE: ${displayCourseTitle} • SEMESTER: ${displaySemesterTitle}`}
                   collegeName="B.J.S. RAMPURIA JAIN LAW COLLEGE"
-                  affiliation="Affiliated to Maharaja Ganga Singh University (MGSU) & Dr. Bhimrao Ambedkar Law University (ALU) • Approved by Bar Council of India (BCI)"
-                  address="J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115 | Email: info@rampurialaw.com"
+                  address="J.N.V. Circle in Sector-III, Jai Narayan Vyas (J.N.V.) Colony, Bikaner, Rajasthan | Phone: 0151-2200115"
                   extraMeta={[
                     { label: 'Total Enrolled', value: `${totalCount} Candidates` },
                     { label: 'Semester Mode', value: semester === 'All' ? 'All Semesters Together' : semester },
-                    { label: 'Category Summary', value: `GEN: ${genCount} | OBC: ${obcCount} | SC: ${scCount} | ST: ${stCount} | EWS: ${ewsCount}` },
+                    { label: 'Category Summary', value: categorySummaryString },
                     { label: 'Gender Ratio', value: `Male: ${maleCount} | Female: ${femaleCount}` }
                   ]}
                 />
@@ -1185,7 +1224,7 @@ const PrintStudentListModal = ({
                     <span className="ml-2 font-normal text-slate-600">(Male: {maleCount}, Female: {femaleCount})</span>
                   </div>
                   <div>
-                    <strong>Category Breakdown:</strong> GEN: {genCount} | OBC: {obcCount} | SC: {scCount} | ST: {stCount} | EWS: {ewsCount}
+                    <strong>Category Breakdown:</strong> {categorySummaryString}
                   </div>
                   <div>
                     <strong>Columns Rendered:</strong> {activeColumns.length} of {ALL_COLUMNS.length}

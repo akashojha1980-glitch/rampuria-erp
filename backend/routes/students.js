@@ -1139,7 +1139,7 @@ router.post('/bulk-import', protect, async (req, res) => {
         const verificationRemarks = dueDocs ? `Pending Documents: ${dueDocs}` : 'Imported via Excel Batch Import';
 
         // Graduation & Qualifying details
-        const gradUniv = getVal(row, ['University Name', 'University', 'gradUniversity', 'Graduation University', 'Grad Univ'], 'Maharaja Ganga Singh University, Bikaner');
+        const gradUniv = getVal(row, ['University Name', 'University', 'gradUniversity', 'Graduation University', 'Grad Univ'], '');
         const gradYr = getVal(row, ['Year of Passing', 'Passing Year', 'gradYear', 'Graduation Year', 'Grad Year'], '2024');
         const gradSubj = getVal(row, ['Quali. Class', 'Quali Class', 'gradSubject', 'Graduation Subject', 'Grad Subject'], 'B.A.');
         const gradMax = parseInt(getVal(row, ['Max. Marks', 'Max Marks', 'gradMaxMarks', 'Grad Max'])) || 1800;

@@ -299,7 +299,7 @@ const Registration = () => {
         '12th Board': 'RBSE',
         '12th Year': '2020',
         '12th Subject': 'Arts',
-        'Graduation University': 'MGSU Bikaner',
+        'Graduation University': 'State University',
         'Graduation Year': '2023',
         'Grad %': '68.5',
         'Aadhar No': '123456789012',
@@ -2067,7 +2067,7 @@ const Registration = () => {
                       name="qualUniversity"
                       value={formData.qualUniversity}
                       onChange={handleFormChange}
-                      placeholder="e.g. MGSU Bikaner"
+                      placeholder="e.g. State University / Board"
                       className="classy-input"
                       required
                     />
