@@ -217,6 +217,16 @@ const connectAndSyncDB = async () => {
       } catch (err) {}
 
       try {
+        await sequelize.query('ALTER TABLE Students ADD studyMode NVARCHAR(255) NULL');
+        console.log('[Migration] Added studyMode column to Students table.');
+      } catch (err) {}
+
+      try {
+        await sequelize.query('ALTER TABLE Students ADD otherCategory NVARCHAR(255) NULL');
+        console.log('[Migration] Added otherCategory column to Students table.');
+      } catch (err) {}
+
+      try {
         await sequelize.query("UPDATE Students SET academicSession = '2025-26' WHERE academicSession IS NULL OR academicSession = ''");
       } catch (err) {}
 

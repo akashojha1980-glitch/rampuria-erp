@@ -101,12 +101,17 @@ router.post('/', protect, upload.fields(studentUploadFields), async (req, res) =
       return res.status(400).json({ message: 'A student with this email is already registered' });
     }
 
-    // Auto-generate Registration ID and check duplicates
-    let registrationId = generateRegistrationId();
-    let idExists = await Student.findOne({ where: { registrationId } });
-    while (idExists) {
-      registrationId = generateRegistrationId();
-      idExists = await Student.findOne({ where: { registrationId } });
+    // Registration ID: use provided or auto-generate
+    let registrationId = (data.registrationId && String(data.registrationId).trim() !== '') 
+      ? String(data.registrationId).trim() 
+      : generateRegistrationId();
+    
+    if (!data.registrationId || String(data.registrationId).trim() === '') {
+      let idExists = await Student.findOne({ where: { registrationId } });
+      while (idExists) {
+        registrationId = generateRegistrationId();
+        idExists = await Student.findOne({ where: { registrationId } });
+      }
     }
 
     // Auto-generate unique incremental SR No
@@ -135,24 +140,31 @@ router.post('/', protect, upload.fields(studentUploadFields), async (req, res) =
       state: data.state,
       pincode: data.pincode,
       category: data.category || 'General',
+      otherCategory: data.otherCategory || '',
       courseApplied: data.courseApplied,
+      academicSession: data.academicSession || '2025-26',
+      academicYear: data.academicYear || '1st Year',
+      currentYear: data.currentYear || data.academicYear || '1st Year',
+      currentSemester: data.currentSemester || '1st Sem',
       // Academic details
-      marks10: Number(data.marks10),
-      board10: data.board10,
-      passingYear10: data.passingYear10,
-      marks12: Number(data.marks12),
-      board12: data.board12,
-      passingYear12: data.passingYear12,
-      subject12: data.subject12,
+      marks10: Number(data.marks10) || 0,
+      board10: data.board10 || '',
+      passingYear10: data.passingYear10 || '',
+      marks12: Number(data.marks12) || 0,
+      board12: data.board12 || '',
+      passingYear12: data.passingYear12 || '',
+      subject12: data.subject12 || '',
       // New admission form fields
       admissionBase: data.admissionBase || 'UG',
+      studyMode: data.studyMode || 'Regular',
       formNo: data.formNo || '',
       studentAccNo: data.studentAccNo || '',
       medium: data.medium || 'English',
-      permanentAddress: data.permanentAddress || '',
+      permanentAddress: data.permanentAddress || data.address || '',
       parentsContact: data.parentsContact || '',
       whatsAppNo: data.whatsAppNo || '',
       aadharNo: data.aadharNo || '',
+      verificationRemarks: data.verificationRemarks || '',
       yearlyIncomeFather: data.yearlyIncomeFather ? Number(data.yearlyIncomeFather) : 0.0,
       yearlyIncomeMother: data.yearlyIncomeMother ? Number(data.yearlyIncomeMother) : 0.0,
       // Qualifying Exam
@@ -1225,6 +1237,8 @@ router.post('/bulk-import', protect, async (req, res) => {
           formNo: getVal(row, ['formNo', 'Form No', 'FormNo', 'Application No'], studentAccNo || ''),
           studentAccNo: studentAccNo || '',
           medium: getVal(row, ['medium', 'Medium', 'माध्यम'], 'Hindi'),
+          studyMode: qualMode || 'Regular',
+          otherCategory: getVal(row, ['Other Catogery', 'Other Category', 'otherCategory', 'Special Category', 'Quota', 'PH', 'Disability'], ''),
           permanentAddress: address,
           parentsContact: alternateMobile || getVal(row, ['parentsContact', 'Parents Contact']),
           whatsAppNo,

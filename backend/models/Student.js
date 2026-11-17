@@ -180,6 +180,14 @@ const Student = sequelize.define('Student', {
     type: DataTypes.STRING,
     defaultValue: 'English'
   },
+  studyMode: {
+    type: DataTypes.STRING,
+    defaultValue: 'Regular'
+  },
+  otherCategory: {
+    type: DataTypes.STRING,
+    defaultValue: ''
+  },
   permanentAddress: {
     type: DataTypes.TEXT,
     defaultValue: ''

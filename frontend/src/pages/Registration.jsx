@@ -84,6 +84,7 @@ const Registration = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState('');
   const [formData, setFormData] = useState({
+    registrationId: '',
     fullName: '',
     fatherName: '',
     motherName: '',
@@ -97,6 +98,7 @@ const Registration = () => {
     state: '',
     pincode: '',
     category: 'General',
+    otherCategory: '',
     marks10: '',
     board10: '',
     passingYear10: '',
@@ -105,18 +107,21 @@ const Registration = () => {
     passingYear12: '',
     subject12: '',
     courseApplied: '',
+    academicSession: '',
     
     // New physical form fields
     admissionBase: 'UG',
+    studyMode: 'Regular',
     formNo: '',
     studentAccNo: '',
-    medium: 'English',
+    medium: 'Hindi',
     permanentAddress: '',
     parentsContact: '',
     whatsAppNo: '',
     aadharNo: '',
     yearlyIncomeFather: '',
     yearlyIncomeMother: '',
+    verificationRemarks: '',
     
     // Qualifying Exam
     qualExamName: '',
@@ -691,6 +696,7 @@ const Registration = () => {
     setIsEditing(false);
     setEditingId('');
     setFormData({
+      registrationId: '',
       fullName: '',
       fatherName: '',
       motherName: '',
@@ -704,6 +710,7 @@ const Registration = () => {
       state: '',
       pincode: '',
       category: 'General',
+      otherCategory: '',
       marks10: '',
       board10: '',
       passingYear10: '',
@@ -712,17 +719,20 @@ const Registration = () => {
       passingYear12: '',
       subject12: '',
       courseApplied: courses[0]?.code || '',
+      academicSession: sessionFilter !== 'All Sessions' ? sessionFilter : (activeSession || '2026-27'),
 
       admissionBase: 'UG',
+      studyMode: 'Regular',
       formNo: '',
       studentAccNo: '',
-      medium: 'English',
+      medium: 'Hindi',
       permanentAddress: '',
       parentsContact: '',
       whatsAppNo: '',
       aadharNo: '',
       yearlyIncomeFather: '',
       yearlyIncomeMother: '',
+      verificationRemarks: '',
 
       qualExamName: '',
       qualUniversity: '',
@@ -767,6 +777,7 @@ const Registration = () => {
     setIsEditing(true);
     setEditingId(student._id);
     setFormData({
+      registrationId: student.registrationId || '',
       fullName: student.fullName,
       fatherName: student.fatherName,
       motherName: student.motherName,
@@ -780,6 +791,7 @@ const Registration = () => {
       state: student.state || '',
       pincode: student.pincode || '',
       category: student.category,
+      otherCategory: student.otherCategory || '',
       marks10: student.marks10 || '',
       board10: student.board10 || '',
       passingYear10: student.passingYear10 || '',
@@ -788,17 +800,20 @@ const Registration = () => {
       passingYear12: student.passingYear12 || '',
       subject12: student.subject12 || '',
       courseApplied: student.courseApplied,
+      academicSession: student.academicSession || '2026-27',
 
       admissionBase: student.admissionBase || 'UG',
+      studyMode: student.studyMode || 'Regular',
       formNo: student.formNo || '',
       studentAccNo: student.studentAccNo || '',
-      medium: student.medium || 'English',
+      medium: student.medium || 'Hindi',
       permanentAddress: student.permanentAddress || '',
       parentsContact: student.parentsContact || '',
       whatsAppNo: student.whatsAppNo || '',
       aadharNo: student.aadharNo || '',
       yearlyIncomeFather: student.yearlyIncomeFather || '',
       yearlyIncomeMother: student.yearlyIncomeMother || '',
+      verificationRemarks: student.verificationRemarks || '',
 
       qualExamName: student.qualExamName || '',
       qualUniversity: student.qualUniversity || '',
@@ -1224,31 +1239,47 @@ const Registration = () => {
                             <td className="px-6 py-4 text-xs">
                               <div className="flex flex-col">
                                 <span className="font-bold text-warm-900 dark:text-slate-100 text-[13px]">{s.fullName}</span>
-                                {s.fatherName && (
-                                  <span className="text-[11px] text-warm-800/60 dark:text-slate-400 font-medium">
-                                    S/D/W of <span className="font-semibold text-warm-900 dark:text-slate-300">{s.fatherName}</span>
-                                  </span>
-                                )}
+                                <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-warm-800/60 dark:text-slate-400 font-medium">
+                                  {s.fatherName && (
+                                    <span>F: <strong className="text-warm-900 dark:text-slate-300">{s.fatherName}</strong></span>
+                                  )}
+                                  {s.motherName && s.motherName !== '-' && s.motherName !== 'Mother' && (
+                                    <span className="text-slate-500">M: <strong className="text-slate-700 dark:text-slate-300">{s.motherName}</strong></span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             {/* Contact / Mobile & WhatsApp */}
                             <td className="px-4 py-4 text-xs">
-                              <div className="flex flex-col font-mono">
+                              <div className="flex flex-col font-mono text-[11px]">
                                 <span className="text-warm-900 dark:text-slate-200 font-medium">{s.mobileNumber || '-'}</span>
                                 {s.whatsAppNo && s.whatsAppNo !== s.mobileNumber && (
                                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">WA: {s.whatsAppNo}</span>
+                                )}
+                                {s.alternateMobile && s.alternateMobile !== s.mobileNumber && s.alternateMobile !== s.whatsAppNo && (
+                                  <span className="text-[10px] text-slate-500">Alt: {s.alternateMobile}</span>
+                                )}
+                                {s.city && (
+                                  <span className="text-[10px] text-slate-400">{s.city}</span>
                                 )}
                               </div>
                             </td>
                             {/* Category & Gender */}
                             <td className="px-4 py-4 text-xs">
-                              <div className="flex items-center space-x-1.5">
-                                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-warm-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300">
-                                  {s.category || 'General'}
-                                </span>
-                                {s.gender && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.gender === 'Female' || s.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'}`}>
-                                    {s.gender === 'M' ? 'Male' : s.gender === 'F' ? 'Female' : s.gender}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-warm-100 dark:bg-darkbg-base text-slate-700 dark:text-slate-300">
+                                    {s.category || 'General'}
+                                  </span>
+                                  {s.gender && (
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.gender === 'Female' || s.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30 dark:text-pink-300' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'}`}>
+                                      {s.gender === 'M' ? 'Male' : s.gender === 'F' ? 'Female' : s.gender}
+                                    </span>
+                                  )}
+                                </div>
+                                {s.otherCategory && s.otherCategory !== '-' && (
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 w-fit">
+                                    {s.otherCategory}
                                   </span>
                                 )}
                               </div>
@@ -1257,20 +1288,30 @@ const Registration = () => {
                             <td className="px-4 py-4 text-xs">
                               <div className="flex flex-col">
                                 <span className="font-bold text-brand-600 dark:text-brand-300">{s.courseApplied}</span>
-                                <span className="text-[10px] text-warm-800/50 dark:text-slate-400 font-medium">{s.currentYear || '1st Year'}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-warm-800/50 dark:text-slate-400 font-medium">{s.currentYear || '1st Year'}</span>
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">{s.studyMode || 'Regular'}</span>
+                                </div>
                               </div>
                             </td>
                             {/* Verification Status */}
                             <td className="px-4 py-4 text-xs">
-                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                s.verificationStatus === 'Verified' || s.verificationStatus === 'Approved'
-                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                                  : s.verificationStatus === 'Rejected'
-                                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
-                                  : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                              }`}>
-                                {s.verificationStatus || 'Pending'}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider w-fit ${
+                                  s.verificationStatus === 'Verified' || s.verificationStatus === 'Approved'
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' 
+                                    : s.verificationStatus === 'Rejected'
+                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
+                                }`}>
+                                  {s.verificationStatus || 'Pending'}
+                                </span>
+                                {s.verificationRemarks && (
+                                  <span className="text-[10px] text-amber-700 dark:text-amber-300 truncate max-w-[140px]" title={s.verificationRemarks}>
+                                    {s.verificationRemarks.replace('Pending Documents:', 'Doc:')}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             {/* Actions */}
                             <td className="px-4 py-4 text-xs">
@@ -1399,32 +1440,60 @@ const Registration = () => {
                 <div className="border-b border-warm-200/40 dark:border-darkbg-border pb-2">
                   <span className="text-xs font-bold text-brand-600 dark:text-brand-300 uppercase tracking-wider">1. Course & Admission Information</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  {/* Form No */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Registration No */}
                   <div className="flex flex-col space-y-1">
-                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Form No *</label>
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Registration No. (पंजीकरण क्रमांक)</label>
                     <input
                       type="text"
-                      name="formNo"
-                      value={formData.formNo}
+                      name="registrationId"
+                      value={formData.registrationId}
                       onChange={handleFormChange}
-                      placeholder="e.g. 8177"
-                      className="classy-input"
-                      required
+                      placeholder="e.g. 202711410 (खाली छोड़ें for Auto)"
+                      className="classy-input font-mono font-bold text-brand-600 dark:text-brand-400"
                     />
                   </div>
 
                   {/* Student Account No */}
                   <div className="flex flex-col space-y-1">
-                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Student A/C No</label>
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Student A/C No (1001, 1002...)</label>
                     <input
                       type="text"
                       name="studentAccNo"
                       value={formData.studentAccNo}
                       onChange={handleFormChange}
-                      placeholder="e.g. AC-9812"
+                      placeholder="e.g. 1001"
+                      className="classy-input font-mono font-bold"
+                    />
+                  </div>
+
+                  {/* Form No */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Form No</label>
+                    <input
+                      type="text"
+                      name="formNo"
+                      value={formData.formNo}
+                      onChange={handleFormChange}
+                      placeholder="e.g. 1001"
                       className="classy-input"
                     />
+                  </div>
+
+                  {/* Academic Session */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Academic Session *</label>
+                    <select
+                      name="academicSession"
+                      value={formData.academicSession}
+                      onChange={handleFormChange}
+                      className="classy-input font-bold"
+                    >
+                      <option value="2026-27">2026-27</option>
+                      <option value="2025-26">2025-26</option>
+                      <option value="2024-25">2024-25</option>
+                      <option value="2023-24">2023-24</option>
+                    </select>
                   </div>
 
                   {/* Admission Base */}
@@ -1442,6 +1511,20 @@ const Registration = () => {
                     </select>
                   </div>
 
+                  {/* Study Mode */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Study Mode (अध्ययन मोड) *</label>
+                    <select
+                      name="studyMode"
+                      value={formData.studyMode}
+                      onChange={handleFormChange}
+                      className="classy-input"
+                    >
+                      <option value="Regular">Regular (नियमित)</option>
+                      <option value="Private">Private (स्वयंपाठी)</option>
+                    </select>
+                  </div>
+
                   {/* Medium */}
                   <div className="flex flex-col space-y-1">
                     <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Medium *</label>
@@ -1452,8 +1535,8 @@ const Registration = () => {
                       className="classy-input"
                       required
                     >
-                      <option value="English">English</option>
-                      <option value="Hindi">Hindi</option>
+                      <option value="Hindi">Hindi (हिन्दी)</option>
+                      <option value="English">English (अंग्रेजी)</option>
                     </select>
                   </div>
 
@@ -1464,7 +1547,7 @@ const Registration = () => {
                       name="courseApplied"
                       value={formData.courseApplied}
                       onChange={handleFormChange}
-                      className="classy-input"
+                      className="classy-input font-bold"
                       required
                     >
                       <option value="" disabled>Select Course</option>
@@ -1562,14 +1645,29 @@ const Registration = () => {
                       name="category"
                       value={formData.category}
                       onChange={handleFormChange}
-                      className="classy-input"
+                      className="classy-input font-bold"
                       required
                     >
-                      <option value="General">General</option>
-                      <option value="OBC">OBC</option>
-                      <option value="SC">SC</option>
-                      <option value="ST">ST</option>
+                      <option value="General">General (सामान्य)</option>
+                      <option value="OBC">OBC (अन्य पिछड़ा वर्ग)</option>
+                      <option value="SC">SC (अनुसूचित जाति)</option>
+                      <option value="ST">ST (अनुसूचित जनजाति)</option>
+                      <option value="EWS">EWS (आर्थिक रूप से कमजोर)</option>
+                      <option value="MBC">MBC</option>
                     </select>
+                  </div>
+
+                  {/* Other Category / Quota */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Other Category / Quota (विशेष श्रेणी)</label>
+                    <input
+                      type="text"
+                      name="otherCategory"
+                      value={formData.otherCategory}
+                      onChange={handleFormChange}
+                      placeholder="e.g. PH (दिव्यांग) / Sports"
+                      className="classy-input"
+                    />
                   </div>
 
                   {/* Aadhar Number */}
@@ -1794,7 +1892,7 @@ const Registration = () => {
                       
                       {/* 10th Row */}
                       <tr>
-                        <td className="px-4 py-3 font-bold text-warm-900 dark:text-slate-200">Secondary (10th) *</td>
+                        <td className="px-4 py-3 font-bold text-warm-900 dark:text-slate-200">Secondary (10th)</td>
                         <td className="px-2 py-2">
                           <input
                             type="text"
@@ -1803,7 +1901,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Board Name"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1814,7 +1911,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Year"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1828,7 +1924,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Max"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1839,7 +1934,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Obt"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -1849,7 +1943,7 @@ const Registration = () => {
 
                       {/* 12th Row */}
                       <tr>
-                        <td className="px-4 py-3 font-bold text-warm-900 dark:text-slate-200">Sr. Secondary (12th) *</td>
+                        <td className="px-4 py-3 font-bold text-warm-900 dark:text-slate-200">Sr. Secondary (12th)</td>
                         <td className="px-2 py-2">
                           <input
                             type="text"
@@ -1858,7 +1952,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Board Name"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1869,7 +1962,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Year"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1880,7 +1972,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="e.g. Science / Arts"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1891,7 +1982,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Max"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -1902,7 +1992,6 @@ const Registration = () => {
                             onChange={handleFormChange}
                             placeholder="Obt"
                             className="w-full px-2.5 py-1.5 rounded-lg border border-warm-200 dark:border-darkbg-border bg-white dark:bg-darkbg-surface text-xs outline-none text-center"
-                            required
                           />
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -2199,6 +2288,24 @@ const Registration = () => {
                       disabled
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* 6. Due Documents & Verification Remarks */}
+              <div className="border-b border-warm-200/40 dark:border-darkbg-border pb-2">
+                <span className="text-xs font-bold text-brand-600 dark:text-brand-300 uppercase tracking-wider">6. Due Documents & Office Remarks (बकाया दस्तावेज़ / टिप्पणी)</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex flex-col space-y-1">
+                  <label className="text-[10px] font-bold text-warm-800/50 dark:text-slate-500 uppercase tracking-widest">Due Documents / Remarks (बकाया दस्तावेज़ या सत्यापन टिप्पणी)</label>
+                  <input
+                    type="text"
+                    name="verificationRemarks"
+                    value={formData.verificationRemarks}
+                    onChange={handleFormChange}
+                    placeholder="उदा. TC Pending, Migration Certificate Due, Original Marksheet Required..."
+                    className="classy-input"
+                  />
                 </div>
               </div>
 
@@ -2525,9 +2632,9 @@ const Registration = () => {
                     </span>
                   </div>
                   
-                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-72 overflow-y-auto shadow-inner">
-                    <table className="w-full text-left text-xs">
-                      <thead className="sticky top-0 bg-warm-100 dark:bg-darkbg-base text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-warm-200 dark:border-darkbg-border shadow-sm">
+                  <div className="border border-warm-200 dark:border-darkbg-border rounded-xl overflow-x-auto max-h-80 overflow-y-auto shadow-inner">
+                    <table className="w-full text-left text-xs whitespace-nowrap">
+                      <thead className="sticky top-0 bg-warm-100 dark:bg-darkbg-base text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 border-b border-warm-200 dark:border-darkbg-border shadow-sm z-10">
                         <tr>
                           <th className="px-2.5 py-2 text-center">S.No</th>
                           <th className="px-2.5 py-2">Ac. No.</th>
@@ -2535,11 +2642,26 @@ const Registration = () => {
                           <th className="px-3 py-2">Student Name</th>
                           <th className="px-3 py-2">Father's Name</th>
                           <th className="px-3 py-2">Mother's Name</th>
+                          <th className="px-2.5 py-2 text-center">D.O.B.</th>
                           <th className="px-2.5 py-2 text-center">Gender</th>
-                          <th className="px-2.5 py-2 text-center">Caste / Category</th>
+                          <th className="px-2.5 py-2 text-center">Medium</th>
+                          <th className="px-2.5 py-2 text-center">Category</th>
+                          <th className="px-2.5 py-2 text-center">Other Cat.</th>
+                          <th className="px-3 py-2">Qual. Class</th>
+                          <th className="px-3 py-2">University Name</th>
+                          <th className="px-2.5 py-2 text-center">Passing Year</th>
+                          <th className="px-2 py-2 text-center">Max Marks</th>
+                          <th className="px-2 py-2 text-center">Obt. Marks</th>
+                          <th className="px-2.5 py-2 text-center">Per. (%)</th>
+                          <th className="px-2.5 py-2 text-center">Adm. Base</th>
+                          <th className="px-2.5 py-2 text-center">Mode</th>
+                          <th className="px-3 py-2">Address</th>
+                          <th className="px-3 py-2">District</th>
                           <th className="px-3 py-2">WhatsApp Mob.</th>
                           <th className="px-3 py-2">Other Mob.</th>
-                          <th className="px-2.5 py-2 text-center">Target Session</th>
+                          <th className="px-3 py-2">Email</th>
+                          <th className="px-3 py-2 font-mono">Aadhar No.</th>
+                          <th className="px-3 py-2">Due Documents / Remarks</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-warm-200/50 dark:divide-darkbg-border font-medium">
@@ -2562,14 +2684,34 @@ const Registration = () => {
                             return fallback;
                           };
 
+                          const formatPreviewDate = (raw) => {
+                            if (!raw || raw === '-') return '-';
+                            const num = parseFloat(raw);
+                            if (!isNaN(num) && num > 20000 && num < 60000) {
+                              const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000));
+                              if (!isNaN(jsDate.getTime())) {
+                                const dd = String(jsDate.getDate()).padStart(2, '0');
+                                const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
+                                const yyyy = jsDate.getFullYear();
+                                return `${dd}/${mm}/${yyyy}`;
+                              }
+                            }
+                            return String(raw);
+                          };
+
+                          const cleanTrailingZero = (val) => {
+                            if (!val || val === '-') return '-';
+                            return String(val).endsWith('.0') ? String(val).slice(0, -2) : String(val);
+                          };
+
                           const sNo = getVal(['S.No', 'S.No.', 'S. No.', 'Sr No', 'Sr. No.', 'SNo'], i + 1);
-                          const acNo = getVal([
+                          const acNo = cleanTrailingZero(getVal([
                             'A/C No.', 'A/C No', 'A/c No.', 'A/c No', 'Ac. No.', 'Ac. No', 
                             'Ac No.', 'Ac No', 'studentAccNo', 'Account No'
-                          ], '-');
-                          const regNo = getVal([
+                          ], '-'));
+                          const regNo = cleanTrailingZero(getVal([
                             'Registration No.', 'Registration No', 'Reg No', 'Reg. No.', 'registrationId'
-                          ], `Auto (#${1001 + i})`);
+                          ], `Auto (#${1001 + i})`));
                           const name = getVal([
                             'Student Full Name', 'Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name'
                           ], '-');
@@ -2582,49 +2724,94 @@ const Registration = () => {
                             'M_NAME', 'motherName', 'Mother'
                           ], '-');
                           
-                          // Gender from Sex, Gender, or Category
+                          const dob = formatPreviewDate(getVal(['D.O.B.', 'D.O.B', 'DOB', 'dob', 'Date of Birth']));
+
+                          // Gender
                           let rawGender = getVal(['Sex', 'sex', 'Gender', 'gender'], '');
                           let genderDisplay = 'Male';
                           if (/^f|female|महिला/i.test(rawGender)) genderDisplay = 'Female';
                           else if (/^m|male/i.test(rawGender)) genderDisplay = 'Male';
                           else if (rawGender) genderDisplay = rawGender;
 
+                          const medium = getVal(['Medium', 'medium'], 'Hindi');
+
                           // Caste / Social Category
                           const caste = getVal([
                             'Cat.', 'Cat', 'Category', 'category', 'Caste', 'caste', 'Social Category'
                           ], 'GEN');
-                          
-                          const whatsapp = getVal([
+
+                          const otherCategory = getVal(['Other Catogery', 'Other Category', 'otherCategory', 'Special Category', 'Quota', 'PH'], '-');
+                          const qualClass = getVal(['Quali.  Class', 'Quali. Class', 'Quali Class', 'Qualifying Class', 'Qualifying Degree'], 'B.A.');
+                          const univ = getVal(['University Name', 'University', 'gradUniversity'], '-');
+                          const passYr = cleanTrailingZero(getVal(['Year of Passing', 'Passing Year', 'gradYear'], '-'));
+                          const maxMarks = cleanTrailingZero(getVal(['Max. Marks', 'Max Marks', 'gradMaxMarks'], '-'));
+                          const obtMarks = cleanTrailingZero(getVal(['Obt. Marks', 'Obt Marks', 'gradObtainedMarks'], '-'));
+                          const per = cleanTrailingZero(getVal(['Per.', 'Per', 'Percentage', 'gradPercentage'], '-'));
+                          const admBase = getVal(['Adm. Base', 'Adm Base', 'admissionBase'], 'UG');
+                          const mode = getVal(['Mode', 'mode', 'Study Mode', 'qualType'], 'Regular');
+                          const address = getVal(['Address', 'address', 'Permanent Address'], '-');
+                          const district = getVal(['Disst.', 'Disst', 'Dist.', 'Dist', 'District', 'city'], '-');
+
+                          const whatsapp = cleanTrailingZero(getVal([
                             'Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 
                             'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'mobileNumber', 'Mobile', 'Phone'
-                          ], '-');
-                          const otherMob = getVal([
+                          ], '-'));
+                          const otherMob = cleanTrailingZero(getVal([
                             'Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 
                             'Other Mobile', 'alternateMobile', 'Parents Contact', 'Parent Mobile'
-                          ], '-');
-                          const session = importSession === 'custom' ? customImportSession : getVal(['Academic Session', 'Session'], importSession);
+                          ], '-'));
+                          const email = getVal(['Mail Id.', 'Mail Id', 'Mail ID', 'Mail id', 'MailId', 'email', 'Email'], '-');
+                          const aadhar = cleanTrailingZero(getVal(['Aadhar No.', 'Aadhar No', 'AadharNo', 'aadharno', 'Aadhaar', 'Aadhar'], '-'));
+                          const dueDocs = getVal(['Due Docoments', 'Due Documents', 'Due Document', 'Pending Documents', 'Remarks'], '-');
 
                           return (
                             <tr key={i} className="hover:bg-warm-50 dark:hover:bg-darkbg-base/70 transition-colors">
                               <td className="px-2.5 py-1.5 text-center text-slate-400 font-mono text-[11px]">{sNo}</td>
                               <td className="px-2.5 py-1.5 font-mono font-bold text-slate-700 dark:text-slate-300">{acNo}</td>
-                              <td className="px-2.5 py-1.5 font-mono font-bold text-brand-600 dark:text-brand-400 whitespace-nowrap">{regNo}</td>
-                              <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">{name}</td>
-                              <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300 whitespace-nowrap">{father}</td>
-                              <td className="px-3 py-1.5 text-slate-600 dark:text-slate-400 whitespace-nowrap">{mother}</td>
-                              <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
+                              <td className="px-2.5 py-1.5 font-mono font-bold text-brand-600 dark:text-brand-400">{regNo}</td>
+                              <td className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">{name}</td>
+                              <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300">{father}</td>
+                              <td className="px-3 py-1.5 text-slate-600 dark:text-slate-400">{mother}</td>
+                              <td className="px-2.5 py-1.5 text-center font-mono text-slate-600 dark:text-slate-400">{dob}</td>
+                              <td className="px-2.5 py-1.5 text-center">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${genderDisplay.includes('Female') || genderDisplay.includes('F') ? 'bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'}`}>
                                   {genderDisplay}
                                 </span>
                               </td>
-                              <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
+                              <td className="px-2.5 py-1.5 text-center text-slate-700 dark:text-slate-300 font-semibold">{medium}</td>
+                              <td className="px-2.5 py-1.5 text-center">
                                 <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                                   {caste}
                                 </span>
                               </td>
+                              <td className="px-2.5 py-1.5 text-center text-slate-600 dark:text-slate-400 font-semibold">{otherCategory}</td>
+                              <td className="px-3 py-1.5 font-bold text-indigo-600 dark:text-indigo-400">{qualClass}</td>
+                              <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300">{univ}</td>
+                              <td className="px-2.5 py-1.5 text-center font-mono text-slate-600 dark:text-slate-400">{passYr}</td>
+                              <td className="px-2 py-1.5 text-center font-mono text-slate-600 dark:text-slate-400">{maxMarks}</td>
+                              <td className="px-2 py-1.5 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">{obtMarks}</td>
+                              <td className="px-2.5 py-1.5 text-center font-mono font-black text-brand-600 dark:text-brand-400">{per}{per !== '-' && !per.includes('%') ? '%' : ''}</td>
+                              <td className="px-2.5 py-1.5 text-center font-bold text-slate-600 dark:text-slate-400">{admBase}</td>
+                              <td className="px-2.5 py-1.5 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${mode === 'Regular' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
+                                  {mode}
+                                </span>
+                              </td>
+                              <td className="px-3 py-1.5 text-slate-600 dark:text-slate-400 max-w-xs truncate" title={address}>{address}</td>
+                              <td className="px-3 py-1.5 text-slate-700 dark:text-slate-300 font-semibold">{district}</td>
                               <td className="px-3 py-1.5 font-mono text-emerald-700 dark:text-emerald-400 font-semibold">{whatsapp}</td>
                               <td className="px-3 py-1.5 font-mono text-slate-600 dark:text-slate-400">{otherMob}</td>
-                              <td className="px-2.5 py-1.5 text-center font-bold font-mono text-indigo-600 dark:text-indigo-400 whitespace-nowrap">{session}</td>
+                              <td className="px-3 py-1.5 font-mono text-slate-600 dark:text-slate-400">{email}</td>
+                              <td className="px-3 py-1.5 font-mono text-slate-700 dark:text-slate-300">{aadhar}</td>
+                              <td className="px-3 py-1.5">
+                                {dueDocs !== '-' && dueDocs ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                                    {dueDocs}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
                             </tr>
                           );
                         })}
