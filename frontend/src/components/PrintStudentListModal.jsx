@@ -150,6 +150,18 @@ const ALL_COLUMNS = [
     exportVal: (s) => s.mobileNumber || ''
   },
   { 
+    id: 'otherMobile', 
+    label: 'Other Mobile No.', 
+    hindi: 'अभिभावक / दूसरा मोबाइल', 
+    width: 'w-24', 
+    align: 'text-left',
+    headerClass: 'text-left whitespace-nowrap',
+    cellClass: 'text-left font-mono text-slate-800 whitespace-nowrap',
+    render: (s) => s.alternateMobile || s.parentsContact || '-',
+    exportHeader: 'Other Mobile No.',
+    exportVal: (s) => s.alternateMobile || s.parentsContact || ''
+  },
+  { 
     id: 'whatsApp', 
     label: 'WhatsApp No.', 
     hindi: 'व्हाट्सएप नंबर', 
@@ -234,6 +246,18 @@ const ALL_COLUMNS = [
     exportVal: (s) => s.admissionBase || 'UG'
   },
   { 
+    id: 'medium', 
+    label: 'Medium', 
+    hindi: 'माध्यम (Hindi / English)', 
+    width: 'w-16', 
+    align: 'text-center',
+    headerClass: 'text-center whitespace-nowrap',
+    cellClass: 'text-center font-bold text-slate-800',
+    render: (s) => s.medium || 'English',
+    exportHeader: 'Medium',
+    exportVal: (s) => s.medium || 'English'
+  },
+  { 
     id: 'qualExam', 
     label: 'Qualifying Degree / Exam', 
     hindi: 'योग्यता परीक्षा / बोर्ड', 
@@ -258,6 +282,62 @@ const ALL_COLUMNS = [
     }
   },
   { 
+    id: 'marksDetail', 
+    label: 'Max / Obt. Marks', 
+    hindi: 'पूर्णांक व प्राप्तांक', 
+    width: 'w-24', 
+    align: 'text-center',
+    headerClass: 'text-center whitespace-nowrap',
+    cellClass: 'text-center font-mono font-bold text-slate-800 whitespace-nowrap',
+    render: (s) => {
+      const max = s.qualMaxMarks || s.gradMaxMarks || 0;
+      const obt = s.qualObtainedMarks || s.gradObtainedMarks || 0;
+      return (max || obt) ? `${obt} / ${max}` : '-';
+    },
+    exportHeader: 'Max / Obt Marks',
+    exportVal: (s) => {
+      const max = s.qualMaxMarks || s.gradMaxMarks || 0;
+      const obt = s.qualObtainedMarks || s.gradObtainedMarks || 0;
+      return (max || obt) ? `${obt} / ${max}` : '';
+    }
+  },
+  { 
+    id: 'qualRollNo', 
+    label: 'Qual. Roll No.', 
+    hindi: 'योग्यता अनुक्रमांक', 
+    width: 'w-20', 
+    align: 'text-center',
+    headerClass: 'text-center whitespace-nowrap',
+    cellClass: 'text-center font-mono text-slate-800',
+    render: (s) => s.gradRollNo || s.qualRollNo || (s.profile && s.profile.rollNo) || '-',
+    exportHeader: 'Qualifying Roll No.',
+    exportVal: (s) => s.gradRollNo || s.qualRollNo || (s.profile && s.profile.rollNo) || ''
+  },
+  { 
+    id: 'passingYear', 
+    label: 'Passing Year', 
+    hindi: 'उत्तीर्ण वर्ष', 
+    width: 'w-16', 
+    align: 'text-center',
+    headerClass: 'text-center whitespace-nowrap',
+    cellClass: 'text-center font-mono font-bold text-slate-800',
+    render: (s) => s.gradYear || s.qualYear || '-',
+    exportHeader: 'Passing Year',
+    exportVal: (s) => s.gradYear || s.qualYear || ''
+  },
+  { 
+    id: 'studyMode', 
+    label: 'Reg. / Priv.', 
+    hindi: 'नियमित / स्वयंपाठी', 
+    width: 'w-20', 
+    align: 'text-center',
+    headerClass: 'text-center whitespace-nowrap',
+    cellClass: 'text-center font-semibold text-slate-800',
+    render: (s) => s.studyMode || s.admissionType || (s.profile && s.profile.studyMode) || 'Regular',
+    exportHeader: 'Regular / Private',
+    exportVal: (s) => s.studyMode || s.admissionType || (s.profile && s.profile.studyMode) || 'Regular'
+  },
+  { 
     id: 'percentage', 
     label: 'Qual. %', 
     hindi: 'प्राप्तांक प्रतिशत (%)', 
@@ -275,14 +355,26 @@ const ALL_COLUMNS = [
   { 
     id: 'address', 
     label: 'Permanent Address', 
-    hindi: 'स्थाई पता व शहर', 
+    hindi: 'स्थाई पता', 
     width: 'min-w-[140px]', 
     align: 'text-left',
     headerClass: 'text-left',
     cellClass: 'text-left text-slate-700 text-[8.5px]',
-    render: (s) => s.permanentAddress || s.address || s.city || '-',
+    render: (s) => s.permanentAddress || s.address || '-',
     exportHeader: 'Address',
-    exportVal: (s) => s.permanentAddress || s.address || s.city || ''
+    exportVal: (s) => s.permanentAddress || s.address || ''
+  },
+  { 
+    id: 'district', 
+    label: 'District', 
+    hindi: 'जिला / शहर', 
+    width: 'w-20', 
+    align: 'text-left',
+    headerClass: 'text-left whitespace-nowrap',
+    cellClass: 'text-left font-medium text-slate-800 whitespace-nowrap',
+    render: (s) => s.city || s.district || '-',
+    exportHeader: 'District',
+    exportVal: (s) => s.city || s.district || ''
   },
   { 
     id: 'aadharNo', 
@@ -347,8 +439,14 @@ const PRESETS = [
   {
     id: 'standard',
     title: 'Standard Master Roll',
-    hindi: 'मानक मास्टर रोल (12 कॉलम)',
+    hindi: 'मानक मास्टर रोल (13 कॉलम)',
     columns: ['sNo', 'accNo', 'regNo', 'fullName', 'fatherName', 'motherName', 'gender', 'category', 'mobile', 'semester', 'qualExam', 'remarks', 'signature']
+  },
+  {
+    id: 'fullExcel',
+    title: 'Full 25-Col Master Roll',
+    hindi: 'सम्पूर्ण 25-कॉलम मास्टर रोल',
+    columns: ['sNo', 'accNo', 'regNo', 'fullName', 'fatherName', 'motherName', 'gender', 'category', 'dob', 'mobile', 'otherMobile', 'address', 'district', 'course', 'medium', 'marksDetail', 'qualExam', 'percentage', 'passingYear', 'studyMode', 'remarks', 'signature']
   },
   {
     id: 'attendance',

@@ -60,6 +60,9 @@ const Registration = () => {
   const [importYear, setImportYear] = useState('1st Year');
   const [importSemester, setImportSemester] = useState('I & II Semester');
   const [importAutoFee, setImportAutoFee] = useState(true);
+  const [workbookInstance, setWorkbookInstance] = useState(null);
+  const [availableSheets, setAvailableSheets] = useState([]);
+  const [selectedSheetName, setSelectedSheetName] = useState('');
   const fileInputRef = useRef(null);
 
   // Registration Number Format Settings States
@@ -346,12 +349,139 @@ const Registration = () => {
     showToastMsg('Downloaded Student Bulk Import Template (.xlsx)');
   };
 
-  // Read Excel File with Smart Header Auto-Detection (Handles merged headers, college banners, etc.)
+  // Helper to clean trailing .0 from numeric strings
+  const cleanNumStr = (val) => {
+    if (val === undefined || val === null || val === '') return '';
+    const s = String(val).trim();
+    if (s.endsWith('.0')) return s.slice(0, -2);
+    return s;
+  };
+
+  // Score a sheet by presence of critical student columns to find the richest master sheet
+  const scoreSheet = (sheet) => {
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    if (!rawRows || rawRows.length === 0) return { score: 0, headerIndex: -1, rawRows: [] };
+
+    let bestScore = 0;
+    let bestHeaderIndex = -1;
+
+    for (let r = 0; r < Math.min(rawRows.length, 25); r++) {
+      const row = rawRows[r];
+      if (!Array.isArray(row)) continue;
+      
+      const cleanCells = row.map(cell => 
+        String(cell || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+      );
+
+      let score = 0;
+      if (cleanCells.some(c => c === 'name' || c === 'studentname' || c === 'fullname' || c === 'candidatename' || c === 'studentfullname')) score += 5;
+      if (cleanCells.some(c => c === 'fname' || c === 'fathername' || c === 'fathersname' || c === 'father')) score += 5;
+      if (cleanCells.some(c => c === 'mname' || c === 'mothername' || c === 'mothersname' || c === 'mother')) score += 4;
+      if (cleanCells.some(c => c === 'acno' || c === 'accountno' || c === 'sno' || c === 'srno')) score += 3;
+      if (cleanCells.some(c => c === 'regno' || c === 'registrationno' || c === 'registrationid' || c === 'registrationnumber')) score += 4;
+      if (cleanCells.some(c => c === 'sex' || c === 'gender')) score += 2;
+      if (cleanCells.some(c => c === 'dob' || c === 'dateofbirth')) score += 2;
+      if (cleanCells.some(c => c === 'cat' || c === 'category' || c === 'caste')) score += 2;
+      if (cleanCells.some(c => c.includes('mob') || c.includes('phone') || c.includes('contact') || c.includes('whatsup') || c.includes('whatsapp'))) score += 3;
+      if (cleanCells.some(c => c.includes('address') || c.includes('disst') || c.includes('dist'))) score += 2;
+      if (cleanCells.some(c => c.includes('qual') || c.includes('degree') || c.includes('exam') || c.includes('marks'))) score += 2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestHeaderIndex = r;
+      }
+    }
+
+    return { score: bestScore, headerIndex: bestHeaderIndex, rawRows };
+  };
+
+  // Parse student records from a sheet's 2D array given its headerIndex
+  const parseRowsFromSheet = (rawRows, headerIndex) => {
+    if (headerIndex === -1) headerIndex = 0;
+    const headerCells = (rawRows[headerIndex] || []).map((h, colIdx) => {
+      const clean = String(h || '').trim();
+      return clean || `Column_${colIdx + 1}`;
+    });
+
+    const parsedStudents = [];
+    let consecutiveBlanks = 0;
+
+    for (let r = headerIndex + 1; r < rawRows.length; r++) {
+      const row = rawRows[r];
+      if (!Array.isArray(row)) continue;
+
+      // Stop if 4 consecutive empty rows
+      const hasAnyVal = row.some(c => c !== undefined && c !== null && String(c).trim() !== '');
+      if (!hasAnyVal) {
+        consecutiveBlanks++;
+        if (consecutiveBlanks >= 4) break;
+        continue;
+      }
+      consecutiveBlanks = 0;
+
+      const firstCell = String(row[0] || '').trim().toLowerCase();
+      // Stop if a secondary table or summary divider appears (e.g. "B.J.S. RAMPURIA", "A/C No.", "LL.B. I SEMESTER")
+      if (r > headerIndex + 5 && (
+        firstCell.includes('b.j.s') || 
+        firstCell.includes('rampuria') || 
+        firstCell.includes('a/c no') || 
+        firstCell.includes('total')
+      )) {
+        break;
+      }
+
+      const rowObj = {};
+      headerCells.forEach((headerName, colIdx) => {
+        let val = row[colIdx] !== undefined ? row[colIdx] : '';
+        val = cleanNumStr(val);
+        rowObj[headerName] = val;
+      });
+
+      // Filter out college title banners or total summaries accidentally caught
+      const valuesJoined = Object.values(rowObj).join(' ').toLowerCase();
+      if (valuesJoined.includes('b.j.s. rampuria') || valuesJoined.includes('jain law college') || (valuesJoined.includes('total') && !rowObj['Name'] && !rowObj['Student Full Name'])) {
+        continue;
+      }
+
+      // Must have student name
+      const nameVal = String(
+        rowObj['Name'] || 
+        rowObj['Student Full Name'] || 
+        rowObj['Student Name'] || 
+        rowObj['Full Name'] || 
+        rowObj['Candidate Name'] || 
+        rowObj['name'] || ''
+      ).trim();
+
+      if (!nameVal || /^\d+$/.test(nameVal)) {
+        continue;
+      }
+
+      parsedStudents.push(rowObj);
+    }
+
+    return parsedStudents;
+  };
+
+  // Change active sheet for multi-sheet workbooks
+  const handleSheetSwitch = (sheetName) => {
+    if (!workbookInstance) return;
+    const ws = workbookInstance.Sheets[sheetName];
+    if (!ws) return;
+    setSelectedSheetName(sheetName);
+    const { headerIndex, rawRows } = scoreSheet(ws);
+    const students = parseRowsFromSheet(rawRows, headerIndex);
+    setExcelRows(students);
+    showToastMsg(`Loaded ${students.length} students from sheet "${sheetName}"`);
+  };
+
+  // Read Excel File with Smart Header Auto-Detection & Sheet Scoring
   const handleExcelFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setExcelFileName(file.name);
+    setExcelRows([]);
     setImportResult(null);
 
     const reader = new FileReader();
@@ -359,104 +489,32 @@ const Registration = () => {
       try {
         const bstr = evt.target.result;
         const wb = XLSX.read(bstr, { type: 'binary', cellDates: true });
-        
-        // Pick sheet: find sheet with 'admission', 'student', or 'list', otherwise sheet 0
-        let wsName = wb.SheetNames[0];
-        const matchingSheet = wb.SheetNames.find(n => {
-          const lower = n.toLowerCase();
-          return lower.includes('admission') || lower.includes('student') || lower.includes('list') || lower.includes('data');
-        });
-        if (matchingSheet) wsName = matchingSheet;
+        setWorkbookInstance(wb);
 
-        const ws = wb.Sheets[wsName];
-        
-        // 1. Convert sheet to 2D array of raw rows
-        const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-        
-        if (!rawRows || rawRows.length === 0) {
-          showToastMsg('The uploaded Excel sheet contains no data rows', 'error');
-          setExcelRows([]);
-          return;
-        }
+        // Score all sheets in workbook to pick the richest master sheet automatically
+        let bestSheetName = wb.SheetNames[0];
+        let maxScore = -1;
+        let bestInfo = null;
 
-        // 2. Automatically find the real header row by scanning for typical column names
-        let headerRowIndex = -1;
-        for (let r = 0; r < Math.min(rawRows.length, 25); r++) {
-          const row = rawRows[r];
-          if (!Array.isArray(row)) continue;
-          
-          const cleanCells = row.map(cell => 
-            String(cell || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-          );
-
-          // Header keywords
-          const hasName = cleanCells.some(c => c === 'name' || c === 'studentname' || c === 'fullname' || c === 'candidatename');
-          const hasFather = cleanCells.some(c => c === 'fname' || c === 'fathername' || c === 'fathersname' || c === 'father');
-          const hasMother = cleanCells.some(c => c === 'mname' || c === 'mothername' || c === 'mothersname' || c === 'mother');
-          const hasAcNo = cleanCells.some(c => c === 'acno' || c === 'accountno' || c === 'sno' || c === 'srno');
-          const hasSex = cleanCells.some(c => c === 'sex' || c === 'gender');
-          const hasDob = cleanCells.some(c => c === 'dob' || c === 'dateofbirth');
-
-          if ((hasName && hasFather) || (hasName && hasAcNo) || (hasName && hasSex) || (hasFather && hasAcNo) || (hasFather && hasMother)) {
-            headerRowIndex = r;
-            break;
+        const sheetSummaries = wb.SheetNames.map(name => {
+          const ws = wb.Sheets[name];
+          const info = scoreSheet(ws);
+          if (info.score > maxScore) {
+            maxScore = info.score;
+            bestSheetName = name;
+            bestInfo = info;
           }
-        }
-
-        // Fallback: search for first row with at least 3 non-empty text cells
-        if (headerRowIndex === -1) {
-          for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
-            const row = rawRows[r];
-            if (Array.isArray(row)) {
-              const textCells = row.filter(c => typeof c === 'string' && c.trim().length > 1);
-              if (textCells.length >= 3) {
-                headerRowIndex = r;
-                break;
-              }
-            }
-          }
-        }
-
-        if (headerRowIndex === -1) headerRowIndex = 0;
-
-        const headerCells = rawRows[headerRowIndex].map((h, colIdx) => {
-          const clean = String(h || '').trim();
-          return clean || `Column_${colIdx + 1}`;
+          return {
+            name,
+            score: info.score,
+            estimatedRows: info.rawRows.length
+          };
         });
 
-        // 3. Extract data rows after the header row
-        const parsedStudents = [];
-        for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
-          const row = rawRows[r];
-          if (!Array.isArray(row)) continue;
+        setAvailableSheets(sheetSummaries);
+        setSelectedSheetName(bestSheetName);
 
-          // Check if row has any non-empty cell
-          const hasData = row.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
-          if (!hasData) continue;
-
-          const rowObj = {};
-          headerCells.forEach((headerName, colIdx) => {
-            rowObj[headerName] = row[colIdx] !== undefined ? row[colIdx] : '';
-          });
-
-          // Filter out college title banners or total summaries accidentally caught
-          const valuesJoined = Object.values(rowObj).join(' ').toLowerCase();
-          if (valuesJoined.includes('b.j.s. rampuria') || valuesJoined.includes('jain law college') || (valuesJoined.includes('total') && !rowObj['Name'] && !rowObj['name'])) {
-            continue;
-          }
-
-          // Row must have at least some student identity (Name or Ac. No.)
-          const hasIdentity = Object.keys(rowObj).some(k => {
-            const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const val = String(rowObj[k] || '').trim();
-            if (!val) return false;
-            return (cleanK.includes('name') && val.length > 1) || (cleanK.includes('acno') && val.length > 0) || (cleanK.includes('roll') && val.length > 0);
-          });
-
-          if (!hasIdentity) continue;
-
-          parsedStudents.push(rowObj);
-        }
+        const parsedStudents = parseRowsFromSheet(bestInfo.rawRows, bestInfo.headerIndex);
 
         if (parsedStudents.length === 0) {
           showToastMsg('Could not find student data rows in the Excel file', 'error');
@@ -465,7 +523,7 @@ const Registration = () => {
         }
 
         setExcelRows(parsedStudents);
-        showToastMsg(`Parsed ${parsedStudents.length} student rows from ${file.name} (Header row: #${headerRowIndex + 1})`);
+        showToastMsg(`Parsed ${parsedStudents.length} student rows from sheet "${bestSheetName}" (${file.name})`);
       } catch (err) {
         console.error('Excel parse error:', err);
         showToastMsg('Failed to parse Excel file. Please ensure it is a valid .xlsx or .xls file.', 'error');
@@ -2405,6 +2463,30 @@ const Registration = () => {
                 </div>
               </div>
 
+              {/* Sheet Selector for Multi-Sheet Workbooks */}
+              {availableSheets.length > 1 && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800 text-xs">
+                  <span className="font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    <span>Multiple Sheets Detected in Workbook ({availableSheets.length}):</span>
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[11px] text-slate-500 font-medium">Active Sheet:</span>
+                    <select
+                      value={selectedSheetName}
+                      onChange={(e) => handleSheetSwitch(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg border-2 border-indigo-400 dark:border-indigo-600 bg-white dark:bg-darkbg-surface font-black text-indigo-950 dark:text-indigo-200 outline-none text-xs shadow-xs"
+                    >
+                      {availableSheets.map(s => (
+                        <option key={s.name} value={s.name}>
+                          {s.name} {s.score >= 15 ? '★ (Full Master Roll - 25 Columns)' : `(${s.estimatedRows} rows)`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Result Summary if any */}
               {importResult && (
                 <div className={`p-4 rounded-xl border ${importResult.success ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-300' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
@@ -2489,7 +2571,7 @@ const Registration = () => {
                             'Registration No.', 'Registration No', 'Reg No', 'Reg. No.', 'registrationId'
                           ], `Auto (#${1001 + i})`);
                           const name = getVal([
-                            'Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name'
+                            'Student Full Name', 'Name', 'name', 'fullName', 'Full Name', 'Student Name', 'Candidate Name'
                           ], '-');
                           const father = getVal([
                             "Father's Name", 'Father Name', 'Fathers Name', 'F. Name', 'F.Name', 'F Name', 

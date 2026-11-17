@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const os = require('os');
+const path = require('path');
+const fs = require('fs');
 const { Op } = require('sequelize');
 const DocSetting = require('../models/DocSetting');
 const Student = require('../models/Student');
@@ -14,6 +16,7 @@ const Result = require('../models/Result');
 const Admin = require('../models/Admin');
 const AppSetting = require('../models/AppSetting');
 const { protect } = require('../middleware/auth');
+const backupService = require('../services/backupService');
 
 const mapId = (instance) => {
   if (!instance) return null;
@@ -503,6 +506,84 @@ router.post('/backup/restore', protect, async (req, res) => {
   } catch (error) {
     console.error('[Backup Restore] Error:', error);
     res.status(500).json({ message: 'Error restoring backup: ' + error.message });
+  }
+});
+
+// @desc    Trigger 1-Click Local Backup saved directly to backups/ folder
+// @route   POST /api/settings/backup/create-local
+// @access  Private
+router.post('/backup/create-local', protect, async (req, res) => {
+  try {
+    const triggeredBy = req.admin?.name || req.admin?.email || 'SuperAdmin';
+    const result = await backupService.createLocalBackup({ type: 'manual', triggeredBy });
+    res.json({
+      success: true,
+      message: '1-Click Complete Backup generated and saved successfully!',
+      backup: result
+    });
+  } catch (error) {
+    console.error('[Create Local Backup] Error:', error);
+    res.status(500).json({ message: 'Error creating local backup: ' + error.message });
+  }
+});
+
+// @desc    List all available backups in the local backups/ folder
+// @route   GET /api/settings/backup/list-local
+// @access  Private
+router.get('/backup/list-local', protect, async (req, res) => {
+  try {
+    const backups = await backupService.listLocalBackups();
+    const backupDir = backupService.getBackupDirectory();
+    res.json({
+      success: true,
+      backupDir,
+      backups
+    });
+  } catch (error) {
+    console.error('[List Local Backups] Error:', error);
+    res.status(500).json({ message: 'Error retrieving backup archive: ' + error.message });
+  }
+});
+
+// @desc    Restore database from a local backup file in backups/ folder
+// @route   POST /api/settings/backup/restore-local
+// @access  Private
+router.post('/backup/restore-local', protect, async (req, res) => {
+  try {
+    const { filename } = req.body;
+    if (!filename) {
+      return res.status(400).json({ message: 'Filename is required to restore backup' });
+    }
+    const result = await backupService.restoreLocalBackup(filename);
+    res.json({
+      success: true,
+      message: `Complete database successfully restored from ${result.filename}!`,
+      restoredCounts: result.restoredCounts,
+      meta: result.meta
+    });
+  } catch (error) {
+    console.error('[Restore Local Backup] Error:', error);
+    res.status(500).json({ message: 'Error restoring backup: ' + error.message });
+  }
+});
+
+// @desc    Download a specific local backup file by filename
+// @route   GET /api/settings/backup/download-local/:filename
+// @access  Private
+router.get('/backup/download-local/:filename', protect, async (req, res) => {
+  try {
+    const safeFilename = path.basename(req.params.filename);
+    const backupDir = backupService.getBackupDirectory();
+    const filepath = path.join(backupDir, safeFilename);
+
+    if (!fs.existsSync(filepath)) {
+      return res.status(404).json({ message: 'Backup file not found' });
+    }
+
+    res.download(filepath, safeFilename);
+  } catch (error) {
+    console.error('[Download Local Backup] Error:', error);
+    res.status(500).json({ message: 'Error downloading backup file: ' + error.message });
   }
 });
 

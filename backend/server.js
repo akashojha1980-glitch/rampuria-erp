@@ -57,6 +57,20 @@ const uploadsPath = isPackaged
 if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath, { recursive: true });
 app.use('/uploads', express.static(uploadsPath));
 
+// Ensure local backups folder exists next to executable / in root
+const backupsPath = isPackaged 
+  ? path.join(path.dirname(process.execPath), 'backups') 
+  : path.join(__dirname, '..', 'backups');
+
+if (!fs.existsSync(backupsPath)) {
+  try {
+    fs.mkdirSync(backupsPath, { recursive: true });
+    console.log(`[Backup Hub] Local backups folder initialized at: ${backupsPath}`);
+  } catch (e) {
+    console.error('[Backup Hub] Error creating backups directory:', e.message);
+  }
+}
+
 // Database connection readiness state
 let isDbConnected = false;
 
@@ -235,6 +249,14 @@ const connectAndSyncDB = async () => {
       
       isDbConnected = true;
       console.log('[MSSQL] Database initialization complete and ready.');
+
+      // Initialize standing automated 24-hour backup service
+      try {
+        const backupService = require('./services/backupService');
+        backupService.initAutoBackupSchedule();
+      } catch (backupInitErr) {
+        console.error('[Backup Engine] Failed to initialize auto-backup scheduler:', backupInitErr.message);
+      }
     } catch (e) {
       console.error('[Sync/Seed] Database error during initialization:', e.message);
       // Fallback to ready in case of temporary minor sync errors

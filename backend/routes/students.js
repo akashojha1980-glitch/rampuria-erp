@@ -903,7 +903,7 @@ const parseExcelDate = (val) => {
     return val.toISOString().split('T')[0];
   }
 
-  // If numeric Excel date serial (e.g. 29339 or 37374)
+  // If numeric Excel date serial (e.g. 29339 or 38234)
   if (typeof val === 'number' || (!isNaN(val) && !String(val).includes('-') && !String(val).includes('/'))) {
     const num = Number(val);
     if (num > 1000 && num < 100000) {
@@ -916,6 +916,15 @@ const parseExcelDate = (val) => {
   }
 
   const str = String(val).trim();
+
+  // Match typo date like 18-101987 (missing second dash)
+  const typoMatch = str.match(/^(\d{1,2})[\/\-\.](\d{2})(\d{4})$/);
+  if (typoMatch) {
+    const day = parseInt(typoMatch[1], 10);
+    const month = parseInt(typoMatch[2], 10);
+    const year = parseInt(typoMatch[3], 10);
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
 
   // Match DD/MM/YYYY or DD-MM-YYYY or D/M/YYYY
   const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
@@ -1041,29 +1050,35 @@ router.post('/bulk-import', protect, async (req, res) => {
         const semester = getVal(row, ['semester', 'Semester', 'Current Semester', 'Term', 'सेमेस्टर'], defaultSemester);
 
         // Student Account Number (Ac. No. in Rampuria sheets)
-        const studentAccNo = getVal(row, [
+        let studentAccNo = getVal(row, [
           'A/C No.', 'A/C No', 'A/c No.', 'A/c No', 'Ac. No.', 'Ac. No', 'Ac No.', 'Ac No', 
           'Ac.No.', 'Ac.No', 'studentAccNo', 'Student Acc No', 'Account No', 'AC NO', 'acno'
         ]);
+        if (studentAccNo && String(studentAccNo).endsWith('.0')) studentAccNo = String(studentAccNo).slice(0, -2);
 
         // Sr No from sheet if present
         const sheetSrNo = parseInt(getVal(row, ['S.No', 'S.No.', 'S. No.', 'S. No', 'Sr No', 'Sr. No.', 'Sr.No.', 'srNo', 'SNo'])) || parseInt(studentAccNo);
 
         // Extract Mobile numbers
-        const rawWhatsApp = getVal(row, [
+        let rawWhatsApp = getVal(row, [
           'Whatsup Mob. No.', 'Whatsup Mob No', 'Whatsup Mob.', 'Whatsup Mob', 
           'Whatsapp Mob. No.', 'WhatsApp No', 'whatsAppNo', 'WhatsApp', 'Whats App No', 
           'Whatsup', 'whatsupmobno'
         ]);
-        const rawOtherMob = getVal(row, [
+        if (rawWhatsApp && String(rawWhatsApp).endsWith('.0')) rawWhatsApp = String(rawWhatsApp).slice(0, -2);
+
+        let rawOtherMob = getVal(row, [
           'Other Mob. No.', 'Other Mob No', 'Other Mob.', 'Other Mob', 
           'Other Mobile', 'Alternate Mobile', 'alternateMobile', 'Parents Contact', 
           'Parent Mobile', 'othermobno'
         ]);
+        if (rawOtherMob && String(rawOtherMob).endsWith('.0')) rawOtherMob = String(rawOtherMob).slice(0, -2);
+
         let primaryMobile = getVal(row, [
           'mobileNumber', 'Mobile Number', 'mobile', 'Mobile', 'Mobile No', 'Mobile No.', 
           'Phone', 'Contact', 'Phone Number', 'MOBILE', 'मोबाइल'
         ]);
+        if (primaryMobile && String(primaryMobile).endsWith('.0')) primaryMobile = String(primaryMobile).slice(0, -2);
 
         if (!primaryMobile) {
           primaryMobile = rawWhatsApp || rawOtherMob || '0000000000';
@@ -1075,7 +1090,7 @@ router.post('/bulk-import', protect, async (req, res) => {
         const whatsAppNo = String(rawWhatsApp || mobileNumber).replace(/[^0-9]/g, '');
         const alternateMobile = String(rawOtherMob || '').replace(/[^0-9]/g, '');
 
-        let rawEmail = getVal(row, ['Mail Id', 'Mail ID', 'Mail id', 'MailId', 'mailid', 'email', 'Email', 'Email ID', 'EMAIL']).toLowerCase().trim();
+        let rawEmail = getVal(row, ['Mail Id.', 'Mail Id', 'Mail ID', 'Mail id', 'MailId', 'mailid', 'email', 'Email', 'Email ID', 'EMAIL']).toLowerCase().trim();
         if (!rawEmail || !rawEmail.includes('@')) {
           const accOrNum = studentAccNo || sheetSrNo || (i + 1);
           rawEmail = `student_${accOrNum}_${assignedSession.replace(/[^0-9]/g, '')}@bjsrampuria.edu.in`.toLowerCase();
@@ -1090,11 +1105,19 @@ router.post('/bulk-import', protect, async (req, res) => {
         usedEmailsInBatch.add(cleanEmail);
 
         // Registration ID: check 'Registration No.', 'Registration No', 'Reg No', etc.
-        let registrationId = getVal(row, ['Registration No.', 'Registration No', 'Registration ID', 'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No']);
-        if (registrationId && registrationId !== '-') {
-          const idExists = await Student.findOne({ where: { registrationId } });
-          if (idExists || usedRegIdsInBatch.has(registrationId)) {
+        let rawRegId = getVal(row, [
+          'Registration No.', 'Registration No', 'Registration Number', 'Registration ID', 
+          'Reg. No.', 'Reg No.', 'Reg No', 'RegNo', 'registrationId', 'Roll No', 'Enrollment No'
+        ]);
+        if (rawRegId && String(rawRegId).endsWith('.0')) rawRegId = String(rawRegId).slice(0, -2);
+
+        let registrationId = '';
+        if (rawRegId && rawRegId !== '-' && rawRegId !== 'Auto' && !rawRegId.toLowerCase().startsWith('auto')) {
+          const idExists = await Student.findOne({ where: { registrationId: rawRegId } });
+          if (idExists || usedRegIdsInBatch.has(rawRegId)) {
             registrationId = formatRegId(currentRegNum++, config, academicSession);
+          } else {
+            registrationId = rawRegId;
           }
         } else {
           registrationId = formatRegId(currentRegNum++, config, academicSession);
@@ -1135,13 +1158,15 @@ router.post('/bulk-import', protect, async (req, res) => {
         const admissionBase = rawBase.includes('PG') ? 'PG' : 'UG';
 
         // Due Documents & Verification Remarks
-        const dueDocs = getVal(row, ['Due Documents', 'Due Document', 'Pending Documents', 'Documents Due', 'Remarks']);
+        const dueDocs = getVal(row, ['Due Docoments', 'Due Documents', 'Due Document', 'Pending Documents', 'Documents Due', 'Remarks']);
         const verificationRemarks = dueDocs ? `Pending Documents: ${dueDocs}` : 'Imported via Excel Batch Import';
 
         // Graduation & Qualifying details
         const gradUniv = getVal(row, ['University Name', 'University', 'gradUniversity', 'Graduation University', 'Grad Univ'], '');
-        const gradYr = getVal(row, ['Year of Passing', 'Passing Year', 'gradYear', 'Graduation Year', 'Grad Year'], '2024');
-        const gradSubj = getVal(row, ['Quali. Class', 'Quali Class', 'gradSubject', 'Graduation Subject', 'Grad Subject'], 'B.A.');
+        let gradYr = getVal(row, ['Year of Passing', 'Passing Year', 'gradYear', 'Graduation Year', 'Grad Year'], '2024');
+        if (gradYr && String(gradYr).endsWith('.0')) gradYr = String(gradYr).slice(0, -2);
+        
+        const gradSubj = getVal(row, ['Quali.  Class', 'Quali. Class', 'Quali Class', 'gradSubject', 'Graduation Subject', 'Grad Subject', 'Qualifying Degree'], 'B.A.');
         const gradMax = parseInt(getVal(row, ['Max. Marks', 'Max Marks', 'gradMaxMarks', 'Grad Max'])) || 1800;
         const gradObt = parseInt(getVal(row, ['Obt. Marks', 'Obt Marks', 'gradObtainedMarks', 'Grad Obtained'])) || 0;
         const gradPct = parseFloat(getVal(row, ['Per.', 'Per', 'Percentage', 'gradPercentage', 'Grad %'])) || (gradMax > 0 && gradObt > 0 ? parseFloat(((gradObt / gradMax) * 100).toFixed(2)) : 0.0);
@@ -1162,9 +1187,12 @@ router.post('/bulk-import', protect, async (req, res) => {
         const obtainedMarks12 = parseInt(getVal(row, ['obtainedMarks12', '12th Obtained'])) || 325;
 
         const address = getVal(row, ['address', 'Address', 'Permanent Address', 'Full Address', 'Village', 'पता'], 'Bikaner');
-        const city = getVal(row, ['Dist.', 'Dist', 'District', 'city', 'City', 'District Name', 'शहर'], 'Bikaner');
+        const city = getVal(row, ['Disst.', 'Disst', 'Dist.', 'Dist', 'District', 'city', 'City', 'District Name', 'शहर'], 'Bikaner');
         const state = getVal(row, ['state', 'State', 'राज्य'], 'Rajasthan');
         const pincode = getVal(row, ['pincode', 'Pincode', 'Pin Code', 'Postal Code', 'पिन कोड'], '334001');
+
+        let rawAadhar = getVal(row, ['Aadhar No.', 'Aadhar No', 'AadharNo', 'aadharno', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']);
+        if (rawAadhar && String(rawAadhar).endsWith('.0')) rawAadhar = String(rawAadhar).slice(0, -2);
 
         const newStudent = await Student.create({
           srNo: !isNaN(sheetSrNo) && sheetSrNo > 0 ? sheetSrNo : currentSrNo++,
@@ -1200,7 +1228,7 @@ router.post('/bulk-import', protect, async (req, res) => {
           permanentAddress: address,
           parentsContact: alternateMobile || getVal(row, ['parentsContact', 'Parents Contact']),
           whatsAppNo,
-          aadharNo: getVal(row, ['Aadhar No.', 'Aadhar No', 'AadharNo', 'aadharno', 'Aadhaar', 'Aadhar', 'UID', 'आधार नं.']),
+          aadharNo: rawAadhar || '',
           yearlyIncomeFather: parseFloat(getVal(row, ['yearlyIncomeFather', 'Father Income', 'Income'])) || 0.0,
           yearlyIncomeMother: parseFloat(getVal(row, ['yearlyIncomeMother', 'Mother Income'])) || 0.0,
           
