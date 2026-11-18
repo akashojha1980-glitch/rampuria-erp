@@ -627,6 +627,14 @@ const ProfileCard = () => {
                   <span className="text-[9px] font-bold uppercase text-slate-400">Permanent Address</span>
                   <span className="font-semibold text-warm-850 dark:text-slate-400 mt-0.5">{student.permanentAddress || student.address}</span>
                 </div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase text-slate-400">Study Mode (अध्ययन मोड)</span>
+                  <span className="font-bold text-warm-900 dark:text-slate-200 mt-0.5">{student.studyMode || 'Regular'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase text-slate-400">Other Category / Quota (विशेष श्रेणी)</span>
+                  <span className="font-bold text-warm-900 dark:text-slate-200 mt-0.5">{student.otherCategory || 'None / General'}</span>
+                </div>
               </div>
             </div>
 
@@ -1661,7 +1669,7 @@ const ProfileCard = () => {
           {/* Fee Payments Section */}
           <div className="mb-6">
             <h2 className="text-xs font-bold uppercase tracking-wider bg-slate-100 p-1.5 border-l-4 border-slate-800 mb-3">4. Fee Accounts & Transaction Receipts</h2>
-            {!feeHistory || feeHistory.length === 0 ? (
+            {!paymentsList || paymentsList.length === 0 ? (
               <p className="text-xs text-slate-500 italic">No fee payment receipts registered.</p>
             ) : (
               <table className="w-full text-xs border border-collapse border-slate-300 print-table">
@@ -1677,10 +1685,10 @@ const ProfileCard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {feeHistory.map(fee => (
-                    <tr key={fee._id} className="text-center">
+                  {paymentsList.map(fee => (
+                    <tr key={fee._id || fee.id} className="text-center">
                       <td className="p-2 border border-slate-300 text-left font-mono font-bold">{fee.receiptNo}</td>
-                      <td className="p-2 border border-slate-300 font-mono">{fee.paymentDate}</td>
+                      <td className="p-2 border border-slate-300 font-mono">{fee.paymentDate ? new Date(fee.paymentDate).toLocaleDateString() : 'N/A'}</td>
                       <td className="p-2 border border-slate-300">{fee.academicYear} - {fee.semester}</td>
                       <td className="p-2 border border-slate-300">{fee.installmentName}</td>
                       <td className="p-2 border border-slate-300 uppercase font-semibold">{fee.paymentMode}</td>
